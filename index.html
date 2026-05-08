@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Seppo Last Race</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #111;
+  font-family: 'Courier New', monospace;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+canvas {
+  display: block;
+  margin: 0 auto;
+  image-rendering: pixelated;
+}
+#ui-overlay {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  pointer-events: none; z-index: 10;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+#ui-overlay.active { pointer-events: all; background: rgba(0,0,0,0.85); }
+.menu { display: none; text-align: center; color: #fff; padding: 20px 12px; max-width: 600px; width: 100%; }
+.menu.visible { display: block; }
+.menu h1 { font-size: clamp(1.4em, 5vw, 2.2em); color: #ffcc00; text-shadow: 3px 3px #aa3300; margin-bottom: 5px; }
+.menu h2 { font-size: clamp(0.85em, 3vw, 1.1em); color: #ff6644; margin-bottom: 16px; }
+.menu p { font-size: clamp(0.75em, 2.8vw, 0.95em); color: #ccc; margin: 5px 0; }
+.menu .stat { color: #88ff88; }
+.btn {
+  display: block; padding: 14px 36px; margin: 10px auto;
+  font-family: 'Courier New', monospace; font-size: clamp(0.9em, 3vw, 1.1em); font-weight: bold;
+  color: #fff; background: #cc4400; border: 3px solid #ff6600;
+  cursor: pointer; text-transform: uppercase; letter-spacing: 2px;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  width: fit-content;
+}
+.btn:hover, .btn:active { background: #ff6600; }
+.upgrade-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 12px auto; max-width: 650px; }
+.upgrade-card {
+  background: #222; border: 2px solid #555; padding: 8px 10px; width: 105px;
+  cursor: pointer; text-align: center; transition: border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.upgrade-card:hover, .upgrade-card:active { border-color: #ffcc00; }
+.upgrade-card .icon { font-size: 1.6em; }
+.upgrade-card .name { font-size: 0.7em; color: #ffcc00; margin-top: 3px; }
+.upgrade-card .desc { font-size: 0.6em; color: #aaa; margin-top: 2px; }
+.upgrade-card .cost { font-size: 0.65em; color: #88ff88; margin-top: 3px; }
+#hud {
+  position: absolute; top: 0; left: 0; width: 100%; padding: 6px 10px;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  pointer-events: none; z-index: 5;
+}
+.hud-left, .hud-right { color: #fff; font-size: clamp(0.65em, 2.2vw, 0.85em); text-shadow: 1px 1px #000; }
+.hud-left span, .hud-right span { display: block; margin: 2px 0; }
+.beer-bar { width: 80px; height: 8px; background: #333; border: 1px solid #666; margin-top: 3px; }
+.beer-fill { height: 100%; background: #ffaa00; transition: width 0.1s; }
+.cooldown-bar { width: 80px; height: 6px; background: #333; border: 1px solid #555; margin-top: 2px; }
+.cooldown-fill { height: 100%; background: #ffdd00; transition: width 0.05s; }
+/* Mobile touch controls */
+#touch-controls {
+  position: absolute; bottom: 0; left: 0; width: 100%; height: 40%;
+  z-index: 8; pointer-events: none;
+  display: none;
+}
+#touch-controls.active { display: block; }
+@media (min-width: 800px) {
+  #touch-controls, #touch-controls.active { display: none !important; }
+}
+.touch-btn {
+  position: absolute;
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  border: 2px solid rgba(255,255,255,0.3);
+  pointer-events: all;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5em;
+  color: rgba(255,255,255,0.6);
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.1s;
+}
+.touch-btn.pressed { background: rgba(255,255,255,0.35); }
+#tb-left { bottom: 30px; left: 20px; }
+#tb-right { bottom: 30px; left: 100px; }
+#tb-up { bottom: 100px; left: 60px; }
+#tb-down { bottom: -30px; left: 60px; display: none; }
+#tb-fire { bottom: 30px; right: 20px; width: 80px; height: 80px; font-size: 2em; background: rgba(255,100,0,0.2); border-color: rgba(255,100,0,0.5); }
+#tb-fire.pressed { background: rgba(255,100,0,0.5); }
+.info-box {
+  text-align: left; display: inline-block; background: #1a1a1a;
+  border: 1px solid #444; padding: 10px 14px; border-radius: 4px;
+  margin-top: 10px; width: 90%; max-width: 420px;
+}
+.info-box p { font-size: clamp(0.75em, 2.8vw, 0.9em) !important; margin: 4px 0 !important; }
+/* Username input */
+.username-row {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin: 10px 0;
+}
+.username-row input {
+  font-family: 'Courier New', monospace; font-size: clamp(0.85em, 3vw, 1em);
+  padding: 8px 12px; background: #222; color: #ffcc00; border: 2px solid #ff6600;
+  outline: none; width: 160px; text-align: center;
+}
+.username-row input::placeholder { color: #886633; }
+.username-row .btn { padding: 8px 16px; margin: 0; font-size: 0.8em; }
+/* Leaderboard */
+.leaderboard { margin: 12px auto; max-width: 380px; width: 90%; }
+.leaderboard h3 { color: #ffcc00; font-size: clamp(0.85em, 3vw, 1em); margin-bottom: 6px; }
+.lb-table { width: 100%; border-collapse: collapse; font-size: clamp(0.6em, 2.2vw, 0.75em); }
+.lb-table th { color: #ffcc00; border-bottom: 1px solid #555; padding: 4px 6px; text-align: left; }
+.lb-table td { color: #ccc; padding: 3px 6px; border-bottom: 1px solid #2a2a2a; }
+.lb-table tr.me td { color: #ffcc00; font-weight: bold; }
+.lb-table td:last-child, .lb-table th:last-child { text-align: right; }
+.lb-loading { color: #888; font-size: 0.75em; }
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="hud" style="display:none;">
+  <div class="hud-left">
+    <span id="hud-score">Score: 0</span>
+    <span id="hud-dist">Distance: 0m</span>
+    <span id="hud-coins">Coins: 0</span>
+  </div>
+  <div class="hud-right">
+    <span id="hud-run">Run #1</span>
+    <span id="hud-speed">Speed: 0</span>
+    <div class="beer-bar"><div class="beer-fill" id="beer-fill" style="width:0%"></div></div>
+    <div class="cooldown-bar"><div class="cooldown-fill" id="cooldown-fill" style="width:0%"></div></div>
+  </div>
+</div>
+
+<div id="touch-controls">
+  <div class="touch-btn" id="tb-left">◀</div>
+  <div class="touch-btn" id="tb-right">▶</div>
+  <div class="touch-btn" id="tb-up">▲</div>
+  <div class="touch-btn" id="tb-fire">🔥</div>
+</div>
+
+<div id="ui-overlay" class="active">
+  <!-- PAGE 1: Title -->
+  <div class="menu visible" id="menu-title">
+    <img src="seppo/rotations/south.png" style="width:80px;height:80px;image-rendering:pixelated;margin-bottom:8px;" alt="Seppo">
+    <h1>🍺 SEPPO LAST RACE 🏎️</h1>
+    <h2>One more beer. One more ride.</h2>
+    <p style="color:#ff8866;">Every run is different. Every crash is final.</p>
+    <div class="btn" id="btn-to-name">CONTINUE</div>
+  </div>
+
+  <!-- PAGE 2: Name -->
+  <div class="menu" id="menu-name">
+    <h1>👤 WHO ARE YOU?</h1>
+    <p>Enter your name for the leaderboard</p>
+    <div class="username-row">
+      <input type="text" id="username-input" placeholder="Your name" maxlength="16" autocomplete="off">
+    </div>
+    <p id="username-display" style="color:#ffcc00; font-size:0.8em; display:none;">Playing as: <span id="username-show"></span></p>
+    <div class="btn" id="btn-to-tutorial">NEXT</div>
+  </div>
+
+  <!-- PAGE 3: How to Play -->
+  <div class="menu" id="menu-tutorial">
+    <h1>📖 HOW TO PLAY</h1>
+    <div class="info-box">
+      <p style="color:#ffcc00;">🎮 CONTROLS:</p>
+      <p style="color:#fff;">⌨️ Arrow keys / WASD — Steer &amp; move</p>
+      <p style="color:#fff;">⌨️ Space / Z — Shoot projectiles</p>
+      <p style="color:#fff;">📱 On-screen D-pad &amp; fire button on mobile</p>
+    </div>
+    <div class="info-box">
+      <p style="color:#ffcc00;">🎯 GOAL:</p>
+      <p>Drive as far as you can! Dodge or shoot obstacles.</p>
+      <p>Collect <span style="color:#ffdd44;">coins (¢)</span> to buy upgrades between runs.</p>
+      <p>Collect <span style="color:#ffaa00;">beers 🍺</span> for random super powers!</p>
+    </div>
+    <div class="info-box">
+      <p style="color:#ffcc00;">🍺 BEER POWERS:</p>
+      <p><span style="color:#ffcc00;">☀ INVINCIBLE</span> <span style="color:#aaa;">— Cannot take damage, smash cars on contact</span></p>
+      <p><span style="color:#ff4400;">🔥 SPEED DEMON</span> <span style="color:#aaa;">— 1.8x speed boost</span></p>
+      <p><span style="color:#aaccff;">👻 GHOST RIDE</span> <span style="color:#aaa;">— Phase through all obstacles</span></p>
+      <p><span style="color:#44ff44;">👁 BEER VISION</span> <span style="color:#aaa;">— Coins worth 3x &amp; bigger</span></p>
+      <p><span style="color:#ff0066;">💢 RAGE MODE</span> <span style="color:#aaa;">— 1.4x speed, smash cars, +2 shot damage</span></p>
+    </div>
+    <div class="info-box">
+      <p style="color:#ffcc00;">💡 TIPS:</p>
+      <p>🔫 Shooting has a cooldown — watch the yellow bar in the HUD</p>
+      <p>🧲 Coin magnet upgrade auto-collects nearby coins</p>
+      <p>🗡️ Piercing shots go through multiple enemies</p>
+      <p>⚡ Difficulty ramps up over time — upgrade wisely!</p>
+    </div>
+    <div class="btn" id="btn-to-leaderboard">NEXT</div>
+  </div>
+
+  <!-- PAGE 4: Leaderboard (pre-game) -->
+  <div class="menu" id="menu-leaderboard">
+    <h1>🏆 LEADERBOARD</h1>
+    <div class="leaderboard" id="lb-main">
+      <p class="lb-loading">Loading...</p>
+    </div>
+    <div class="btn" id="btn-start">START ENGINE</div>
+  </div>
+
+  <!-- DEATH PAGE 1: Stats -->
+  <div class="menu" id="menu-dead-stats">
+    <img id="dead-seppo-img" src="seppo/animations/falling-back-death/south/frame_006.png" style="width:96px;height:96px;image-rendering:pixelated;margin-bottom:10px;" alt="Seppo">
+    <h1>💀 WASTED</h1>
+    <p>Seppo's ride has ended...</p>
+    <p class="stat" id="dead-score">Score: 0</p>
+    <p class="stat" id="dead-dist">Distance: 0m</p>
+    <p class="stat" id="dead-coins">Coins earned: 0</p>
+    <p class="stat" id="dead-total-coins">Total coins: 0</p>
+    <div class="btn" id="btn-to-upgrades">UPGRADES</div>
+  </div>
+
+  <!-- DEATH PAGE 2: Upgrades -->
+  <div class="menu" id="menu-dead-upgrades">
+    <h1>⬆ UPGRADES</h1>
+    <p class="stat" id="upgrade-coins">Total coins: 0</p>
+    <div class="upgrade-grid" id="upgrade-grid"></div>
+    <div class="btn" id="btn-to-dead-lb">LEADERBOARD</div>
+  </div>
+
+  <!-- DEATH PAGE 3: Leaderboard + Retry -->
+  <div class="menu" id="menu-dead-lb">
+    <h1>🏆 LEADERBOARD</h1>
+    <div class="leaderboard" id="lb-dead">
+      <p class="lb-loading">Loading...</p>
+    </div>
+    <div class="btn" id="btn-retry">RIDE AGAIN</div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// SEPPO LAST RACE - Rogue-like top-down driving game
+// ============================================================
+
+// --- FIREBASE ---
+const firebaseConfig = {
+  apiKey: "AIzaSyB3n_TbIvwMe5s3WJqvef9QLoaBsN80MKI",
+  authDomain: "seppo-last-race.firebaseapp.com",
+  projectId: "seppo-last-race",
+  storageBucket: "seppo-last-race.firebasestorage.app",
+  messagingSenderId: "276355163378",
+  appId: "1:276355163378:web:96cc25215cecb59d181c6b"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// --- COOKIES ---
+function setCookie(name, value, days) {
+  const d = new Date();
+  d.setTime(d.getTime() + days * 86400000);
+  document.cookie = name + '=' + encodeURIComponent(value) + ';expires=' + d.toUTCString() + ';path=/;SameSite=Lax';
+}
+function getCookie(name) {
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
+// --- USERNAME ---
+let playerName = getCookie('seppo_username') || '';
+const usernameInput = document.getElementById('username-input');
+const usernameDisplay = document.getElementById('username-display');
+const usernameShow = document.getElementById('username-show');
+
+function updateUsernameUI() {
+  if (playerName) {
+    usernameInput.value = playerName;
+    usernameShow.textContent = playerName;
+    usernameDisplay.style.display = 'block';
+  } else {
+    usernameDisplay.style.display = 'none';
+  }
+}
+function saveName() {
+  const raw = usernameInput.value.replace(/[^a-zA-Z0-9_\-. åäöÅÄÖ]/g, '').trim().substring(0, 16);
+  if (!raw) return;
+  playerName = raw;
+  setCookie('seppo_username', playerName, 365);
+  updateUsernameUI();
+}
+usernameInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveName(); } });
+updateUsernameUI();
+
+// --- LEADERBOARD ---
+async function submitScore(name, scoreVal, dist) {
+  if (!name) return;
+  try {
+    await db.collection('leaderboard').add({
+      name: name.substring(0, 16),
+      score: scoreVal,
+      distance: Math.floor(dist),
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (err) {
+    console.warn('Failed to submit score:', err);
+  }
+}
+
+async function fetchLeaderboard() {
+  try {
+    const snap = await db.collection('leaderboard')
+      .orderBy('score', 'desc')
+      .limit(10)
+      .get();
+    const entries = [];
+    snap.forEach(doc => entries.push(doc.data()));
+    return entries;
+  } catch (err) {
+    console.warn('Failed to fetch leaderboard:', err);
+    return null;
+  }
+}
+
+function renderLeaderboard(containerId, entries, highlightName) {
+  const el = document.getElementById(containerId);
+  if (!entries) {
+    el.innerHTML = '<h3>🏆 LEADERBOARD</h3><p class="lb-loading">Could not load leaderboard</p>';
+    return;
+  }
+  if (entries.length === 0) {
+    el.innerHTML = '<h3>🏆 LEADERBOARD</h3><p class="lb-loading">No scores yet. Be the first!</p>';
+    return;
+  }
+  let html = '<h3>🏆 LEADERBOARD</h3><table class="lb-table"><tr><th>#</th><th>Name</th><th>Score</th><th>Dist</th></tr>';
+  entries.forEach((e, i) => {
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+    const isMe = highlightName && e.name === highlightName;
+    html += `<tr class="${isMe ? 'me' : ''}"><td>${medal}</td><td>${e.name}</td><td>${e.score}</td><td>${e.distance || 0}m</td></tr>`;
+  });
+  html += '</table>';
+  el.innerHTML = html;
+}
+
+async function refreshLeaderboards() {
+  const entries = await fetchLeaderboard();
+  renderLeaderboard('lb-main', entries, playerName);
+  renderLeaderboard('lb-dead', entries, playerName);
+}
+refreshLeaderboards();
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// --- SEPPO SPRITES ---
+const seppoSprites = {};
+const SEPPO_ROTATIONS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+SEPPO_ROTATIONS.forEach(dir => {
+  const img = new Image();
+  img.src = `seppo/rotations/${dir}.png`;
+  seppoSprites[dir] = img;
+});
+
+// Drinking animation frames
+const seppoDrinking = [];
+for (let i = 0; i <= 5; i++) {
+  const img = new Image();
+  img.src = `seppo/animations/drinking/south/frame_00${i}.png`;
+  seppoDrinking.push(img);
+}
+
+// Death animation frames
+const seppoDeath = [];
+for (let i = 0; i <= 6; i++) {
+  const img = new Image();
+  img.src = `seppo/animations/falling-back-death/south/frame_00${i}.png`;
+  seppoDeath.push(img);
+}
+
+// Idle animation frames
+const seppoIdle = [];
+for (let i = 0; i <= 3; i++) {
+  const img = new Image();
+  img.src = `seppo/animations/breathing-idle/south/frame_00${i}.png`;
+  seppoIdle.push(img);
+}
+
+let seppoAnimFrame = 0;
+let seppoAnimTimer = 0;
+let seppoDeathFrame = 0;
+let seppoDeathDone = false;
+
+// --- DEVICE DETECTION ---
+const isMobile = (('ontouchstart' in window) || navigator.maxTouchPoints > 0) && window.innerWidth < 800;
+
+// --- SIZING ---
+let W, H, SCALE;
+function resize() {
+  const maxW = isMobile ? 500 : 1100;
+  const maxH = window.innerHeight;
+  const aspect = isMobile ? 9 / 16 : 16 / 10;
+  H = maxH;
+  W = Math.min(maxW, Math.floor(H * aspect));
+  if (W > window.innerWidth) { W = window.innerWidth; H = Math.floor(W / aspect); }
+  canvas.width = W;
+  canvas.height = H;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  SCALE = W / (isMobile ? 500 : 1100);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- CONSTANTS ---
+const ROAD_LEFT = () => W * 0.12;
+const ROAD_RIGHT = () => W * 0.88;
+const ROAD_W = () => ROAD_RIGHT() - ROAD_LEFT();
+const LANE_COUNT = isMobile ? 4 : 6;
+const LANE_W = () => ROAD_W() / LANE_COUNT;
+const CAR_W = () => 36 * SCALE;
+const CAR_H = () => 60 * SCALE;
+
+// --- GAME STATE ---
+let state = 'menu'; // menu, playing, dead
+let runNumber = 0;
+let totalCoins = 0;
+
+// Persistent upgrades
+let upgrades = {
+  maxSpeed: 0,    // +speed
+  handling: 0,    // +turn speed
+  armor: 0,       // hits before death
+  beerDuration: 0,// longer beer power
+  coinMagnet: 0,  // bigger pickup radius
+  beerChance: 0,  // more beer spawns
+  shotDamage: 0,  // projectile damage
+  shotSpeed: 0,   // fire rate
+  shotPierce: 0   // projectiles pierce through enemies
+};
+
+const UPGRADE_DEFS = [
+  { key: 'maxSpeed', icon: '⚡', name: 'Turbo Engine', desc: '+Top speed', cost: n => 3 + n * 3, max: 8 },
+  { key: 'handling', icon: '🎯', name: 'Power Steering', desc: '+Handling', cost: n => 2 + n * 2, max: 8 },
+  { key: 'armor', icon: '🛡️', name: 'Bumper Guard', desc: '+1 Hit point', cost: n => 5 + n * 5, max: 5 },
+  { key: 'beerDuration', icon: '🍺', name: 'Beer Belly', desc: '+Beer duration', cost: n => 4 + n * 3, max: 6 },
+  { key: 'coinMagnet', icon: '🧲', name: 'Coin Magnet', desc: '+Pickup range', cost: n => 3 + n * 2, max: 5 },
+  { key: 'beerChance', icon: '🎰', name: 'Bar Finder', desc: '+Beer spawns', cost: n => 4 + n * 3, max: 5 },
+  { key: 'shotDamage', icon: '💥', name: 'Bigger Bullets', desc: '+Shot damage', cost: n => 3 + n * 3, max: 6 },
+  { key: 'shotSpeed', icon: '🔫', name: 'Rapid Fire', desc: '+Fire rate', cost: n => 3 + n * 2, max: 6 },
+  { key: 'shotPierce', icon: '🗡️', name: 'Piercing Shot', desc: '+Pierce enemies', cost: n => 6 + n * 5, max: 3 }
+];
+
+// Per-run state
+let player = { x: 0, y: 0, w: 0, h: 0, vx: 0, vy: 0, tilt: 0 };
+let obstacles = [];
+let pickups = [];
+let particles = [];
+let roadMarkers = [];
+let projectiles = [];
+let score = 0, distance = 0, coinsThisRun = 0, speed = 0, baseSpeed = 0, scrollY = 0;
+let beerTimer = 0, beerPower = null, hp = 1;
+let spawnTimer = 0, difficultyTimer = 0, difficulty = 1;
+let screenShake = 0, shakeTimer = 0;
+let steerInput = 0; // -1 left, 0 none, 1 right
+let gameTime = 0;
+let comboCounter = 0, comboTimer = 0;
+let shootCooldown = 0;
+
+// Beer power types
+const BEER_POWERS = [
+  { name: 'INVINCIBLE', color: '#ffcc00', desc: 'Cannot be stopped!' },
+  { name: 'SPEED DEMON', color: '#ff4400', desc: 'MAXIMUM OVERDRIVE!' },
+  { name: 'GHOST RIDE', color: '#aaccff', desc: 'Phase through cars!' },
+  { name: 'BEER VISION', color: '#44ff44', desc: 'Coins everywhere!' },
+  { name: 'RAGE MODE', color: '#ff0066', desc: 'Destroy everything!' }
+];
+
+function initRun() {
+  runNumber++;
+  player = {
+    x: W / 2,
+    y: H * 0.75,
+    w: CAR_W(),
+    h: CAR_H(),
+    vx: 0,
+    vy: 0,
+    tilt: 0
+  };
+  seppoAnimFrame = 0;
+  seppoAnimTimer = 0;
+  seppoDeathFrame = 0;
+  seppoDeathDone = false;
+  obstacles = [];
+  pickups = [];
+  particles = [];
+  roadMarkers = [];
+  projectiles = [];
+  score = 0;
+  distance = 0;
+  coinsThisRun = 0;
+  baseSpeed = 2.2 + upgrades.maxSpeed * 0.4;
+  speed = baseSpeed;
+  scrollY = 0;
+  beerTimer = 0;
+  beerPower = null;
+  hp = 2 + upgrades.armor;
+  spawnTimer = 0;
+  difficultyTimer = 0;
+  difficulty = 1;
+  screenShake = 0;
+  shakeTimer = 0;
+  steerInput = 0;
+  gameTime = 0;
+  comboCounter = 0;
+  comboTimer = 0;
+  shootCooldown = 0;
+
+  // Init road markers
+  for (let y = -50; y < H + 100; y += 60) {
+    roadMarkers.push(y);
+  }
+}
+
+// --- DRAWING HELPERS ---
+function drawRect(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+}
+
+function drawCar(x, y, w, h, color1, color2, tilt) {
+  ctx.save();
+  ctx.translate(x + w / 2, y + h / 2);
+  ctx.rotate(tilt * 0.15);
+  const hw = w / 2, hh = h / 2;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(-hw + 3, -hh + 3, w, h);
+
+  // Body
+  ctx.fillStyle = color1;
+  ctx.fillRect(-hw, -hh, w, h);
+
+  // Roof
+  ctx.fillStyle = color2;
+  ctx.fillRect(-hw + 4 * SCALE, -hh + 12 * SCALE, w - 8 * SCALE, h * 0.45);
+
+  // Windshield
+  ctx.fillStyle = '#88ccff';
+  ctx.fillRect(-hw + 5 * SCALE, -hh + 10 * SCALE, w - 10 * SCALE, 10 * SCALE);
+
+  // Rear window
+  ctx.fillStyle = '#6699cc';
+  ctx.fillRect(-hw + 6 * SCALE, hh - 18 * SCALE, w - 12 * SCALE, 8 * SCALE);
+
+  // Headlights
+  ctx.fillStyle = '#ffffaa';
+  ctx.fillRect(-hw + 2 * SCALE, -hh, 6 * SCALE, 4 * SCALE);
+  ctx.fillRect(hw - 8 * SCALE, -hh, 6 * SCALE, 4 * SCALE);
+
+  // Taillights
+  ctx.fillStyle = '#ff3333';
+  ctx.fillRect(-hw + 2 * SCALE, hh - 4 * SCALE, 6 * SCALE, 4 * SCALE);
+  ctx.fillRect(hw - 8 * SCALE, hh - 4 * SCALE, 6 * SCALE, 4 * SCALE);
+
+  ctx.restore();
+}
+
+function drawBeer(x, y, size) {
+  const s = size;
+  // Mug
+  ctx.fillStyle = '#ddaa33';
+  ctx.fillRect(x - s * 0.4, y - s * 0.5, s * 0.8, s);
+  // Foam
+  ctx.fillStyle = '#ffffee';
+  ctx.fillRect(x - s * 0.45, y - s * 0.65, s * 0.9, s * 0.3);
+  // Handle
+  ctx.fillStyle = '#bb8822';
+  ctx.fillRect(x + s * 0.4, y - s * 0.2, s * 0.25, s * 0.6);
+  // Bubbles
+  ctx.fillStyle = '#ffeecc';
+  ctx.fillRect(x - s * 0.1, y - s * 0.1, s * 0.12, s * 0.12);
+  ctx.fillRect(x + s * 0.15, y + s * 0.1, s * 0.1, s * 0.1);
+}
+
+function drawCoin(x, y, size) {
+  ctx.fillStyle = '#ffdd44';
+  ctx.beginPath();
+  ctx.arc(x, y, size, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#aa8800';
+  ctx.beginPath();
+  ctx.arc(x, y, size * 0.6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffee88';
+  ctx.font = `bold ${Math.round(size)}px monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('¢', x, y + 1);
+}
+
+// --- SPAWNING ---
+function spawnObstacle() {
+  const types = ['car', 'car', 'car', 'truck', 'barrier'];
+  if (difficulty > 3) types.push('truck', 'barrier');
+  if (difficulty > 6) types.push('drunk_car');
+  const type = types[Math.floor(Math.random() * types.length)];
+
+  const lane = Math.floor(Math.random() * LANE_COUNT);
+  const lx = ROAD_LEFT() + lane * LANE_W() + LANE_W() / 2;
+
+  // Check if another obstacle is too close in the same lane
+  const tooClose = obstacles.some(o => o.lane === lane && o.y < 0 && Math.abs(o.y - (-80)) < CAR_H() * 2);
+  if (tooClose) return;
+
+  let ob = { x: lx, y: -80, type, lane, vx: 0 };
+
+  if (type === 'car') {
+    ob.w = CAR_W() * 0.9;
+    ob.h = CAR_H() * 0.9;
+    ob.speed = speed * (0.3 + Math.random() * 0.4);
+    ob.color1 = ['#cc3333', '#3366cc', '#33aa33', '#aa33aa', '#cc8833'][Math.floor(Math.random() * 5)];
+    ob.color2 = '#444';
+  } else if (type === 'truck') {
+    ob.w = CAR_W() * 1.15;
+    ob.h = CAR_H() * 1.5;
+    ob.speed = speed * (0.15 + Math.random() * 0.25);
+    ob.color1 = '#667788';
+    ob.color2 = '#445566';
+  } else if (type === 'barrier') {
+    ob.w = LANE_W() * 0.8;
+    ob.h = 16 * SCALE;
+    ob.speed = 0;
+    ob.color1 = '#ff8800';
+    ob.color2 = '#ffaa33';
+  } else if (type === 'drunk_car') {
+    ob.w = CAR_W();
+    ob.h = CAR_H();
+    ob.speed = speed * (0.2 + Math.random() * 0.3);
+    ob.color1 = '#ff66aa';
+    ob.color2 = '#553344';
+    ob.swervePhase = Math.random() * Math.PI * 2;
+    ob.swerveSpeed = 2 + Math.random() * 2;
+    ob.swerveAmp = 30 + Math.random() * 30;
+  }
+
+  obstacles.push(ob);
+}
+
+function spawnPickup() {
+  const lane = Math.floor(Math.random() * LANE_COUNT);
+  const lx = ROAD_LEFT() + lane * LANE_W() + LANE_W() / 2;
+  const beerChanceBonus = upgrades.beerChance * 0.04;
+  const isBeer = Math.random() < 0.18 + beerChanceBonus;
+
+  pickups.push({
+    x: lx,
+    y: -30,
+    type: isBeer ? 'beer' : 'coin',
+    size: isBeer ? 18 * SCALE : 10 * SCALE,
+    collected: false
+  });
+}
+
+function spawnParticle(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 6,
+      vy: (Math.random() - 0.5) * 6 - 2,
+      life: 20 + Math.random() * 20,
+      maxLife: 40,
+      color,
+      size: 2 + Math.random() * 4
+    });
+  }
+}
+
+function spawnText(x, y, text, color) {
+  particles.push({
+    x, y, vx: 0, vy: -2,
+    life: 40, maxLife: 40,
+    color, size: 0,
+    text
+  });
+}
+
+// --- COLLISION ---
+function rectsOverlap(a, b) {
+  return a.x - a.w / 2 < b.x + b.w / 2 &&
+         a.x + a.w / 2 > b.x - b.w / 2 &&
+         a.y - a.h / 2 < b.y + b.h / 2 &&
+         a.y + a.h / 2 > b.y - b.h / 2;
+}
+
+function dist(a, b) {
+  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+}
+
+// --- INPUT ---
+let keys = {};
+window.addEventListener('keydown', e => {
+  // Don't capture keys when typing in input fields
+  if (e.target.tagName === 'INPUT') return;
+  keys[e.key] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+let touchL = false, touchR = false, touchU = false, touchD = false, touchFire = false;
+
+function setupTouchBtn(id, callback) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const press = (e) => { e.preventDefault(); el.classList.add('pressed'); callback(true); };
+  const release = (e) => { e.preventDefault(); el.classList.remove('pressed'); callback(false); };
+  el.addEventListener('touchstart', press, { passive: false });
+  el.addEventListener('touchend', release, { passive: false });
+  el.addEventListener('touchcancel', release, { passive: false });
+  el.addEventListener('mousedown', press);
+  el.addEventListener('mouseup', release);
+  el.addEventListener('mouseleave', release);
+}
+setupTouchBtn('tb-left', v => touchL = v);
+setupTouchBtn('tb-right', v => touchR = v);
+setupTouchBtn('tb-up', v => touchU = v);
+setupTouchBtn('tb-fire', v => touchFire = v);
+
+function getSteer() {
+  let s = 0;
+  if (keys['ArrowLeft'] || keys['a'] || keys['A'] || touchL) s -= 1;
+  if (keys['ArrowRight'] || keys['d'] || keys['D'] || touchR) s += 1;
+  return s;
+}
+
+function getVertical() {
+  let v = 0;
+  if (keys['ArrowUp'] || keys['w'] || keys['W'] || touchU) v -= 1;
+  if (keys['ArrowDown'] || keys['s'] || keys['S'] || touchD) v += 1;
+  return v;
+}
+
+// --- UPDATE ---
+function update(dt) {
+  if (state !== 'playing') return;
+
+  gameTime += dt;
+  const turnSpeed = (4.5 + upgrades.handling * 0.6) * SCALE;
+
+  // Difficulty ramp
+  difficultyTimer += dt;
+  if (difficultyTimer > 500) { // every ~8 seconds
+    difficultyTimer = 0;
+    difficulty += 0.2;
+    baseSpeed = Math.min(9, 2.2 + upgrades.maxSpeed * 0.4 + difficulty * 0.18);
+  }
+
+  // Beer power
+  if (beerTimer > 0) {
+    beerTimer -= dt;
+    if (beerTimer <= 0) {
+      beerTimer = 0;
+      beerPower = null;
+      speed = baseSpeed;
+    }
+  }
+
+  // Speed based on beer power
+  if (beerPower) {
+    if (beerPower.name === 'SPEED DEMON') speed = baseSpeed * 1.8;
+    else if (beerPower.name === 'RAGE MODE') speed = baseSpeed * 1.4;
+    else speed = baseSpeed * 1.15;
+  } else {
+    speed += (baseSpeed - speed) * 0.05;
+  }
+
+  // Steering
+  steerInput = getSteer();
+  const vertInput = getVertical();
+  player.vx += steerInput * turnSpeed * 0.4;
+  player.vx *= 0.82;
+  player.x += player.vx;
+  player.tilt += (steerInput * 0.6 - player.tilt) * 0.15;
+
+  // Forward/backward movement
+  const vertSpeed = 3.5 * SCALE;
+  player.vy += vertInput * vertSpeed * 0.3;
+  player.vy *= 0.85;
+  player.y += player.vy;
+
+  // Clamp to road
+  const minX = ROAD_LEFT() + player.w / 2 + 4;
+  const maxX = ROAD_RIGHT() - player.w / 2 - 4;
+  if (player.x < minX) { player.x = minX; player.vx = 0; }
+  if (player.x > maxX) { player.x = maxX; player.vx = 0; }
+
+  // Clamp vertical
+  const minY = H * 0.2;
+  const maxY = H * 0.9;
+  if (player.y < minY) { player.y = minY; player.vy = 0; }
+  if (player.y > maxY) { player.y = maxY; player.vy = 0; }
+
+  // Scroll
+  scrollY += speed;
+  distance += speed * 0.1;
+  score += Math.floor(speed * 0.5);
+
+  // Road markers
+  for (let i = 0; i < roadMarkers.length; i++) {
+    roadMarkers[i] += speed;
+    if (roadMarkers[i] > H + 100) roadMarkers[i] -= H + 150;
+  }
+
+  // Spawn
+  spawnTimer += speed;
+  const spawnRate = Math.max(100, 260 - difficulty * 10);
+  if (spawnTimer > spawnRate) {
+    spawnTimer = 0;
+    spawnObstacle();
+    if (Math.random() < 0.7) spawnPickup();
+  }
+
+  // Combo timer
+  if (comboTimer > 0) {
+    comboTimer -= dt;
+    if (comboTimer <= 0) comboCounter = 0;
+  }
+
+  // Shooting
+  if (shootCooldown > 0) shootCooldown -= dt;
+  const shootKey = keys[' '] || keys['z'] || keys['Z'] || touchFire;
+  const maxCooldown = Math.max(500, 1200 - upgrades.shotSpeed * 80);
+  if (shootKey && shootCooldown <= 0) {
+    shootCooldown = maxCooldown;
+    const dmg = 1 + upgrades.shotDamage;
+    const pierce = upgrades.shotPierce;
+    const rageDmg = beerPower && beerPower.name === 'RAGE MODE' ? 2 : 0;
+    projectiles.push({
+      x: player.x,
+      y: player.y - player.h / 2 - 4,
+      w: 6 * SCALE,
+      h: 14 * SCALE,
+      vy: -(8 + speed) * SCALE,
+      damage: dmg + rageDmg,
+      pierce: pierce,
+      hits: 0,
+      color: beerPower && beerPower.name === 'RAGE MODE' ? '#ff0066' : '#ffdd00'
+    });
+  }
+
+  // Update projectiles
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const pr = projectiles[i];
+    pr.y += pr.vy;
+    if (pr.y < -30) { projectiles.splice(i, 1); continue; }
+
+    // Check projectile vs obstacles
+    const prBox = { x: pr.x, y: pr.y, w: pr.w, h: pr.h };
+    for (let j = obstacles.length - 1; j >= 0; j--) {
+      const ob = obstacles[j];
+      const obBox = { x: ob.x, y: ob.y, w: ob.w * 0.85, h: ob.h * 0.85 };
+      if (rectsOverlap(prBox, obBox)) {
+        if (!ob.projHp) ob.projHp = ob.type === 'truck' ? 3 : ob.type === 'barrier' ? 1 : 2;
+        ob.projHp -= pr.damage;
+        spawnParticle(pr.x, pr.y, '#ffaa00', 6);
+        pr.hits++;
+        if (ob.projHp <= 0) {
+          spawnParticle(ob.x, ob.y, '#ff8800', 12);
+          spawnText(ob.x, ob.y - 20, 'DESTROYED!', '#ffaa00');
+          score += 150;
+          obstacles.splice(j, 1);
+        }
+        if (pr.hits > pr.pierce) {
+          projectiles.splice(i, 1);
+        }
+        break;
+      }
+    }
+  }
+
+  // Update obstacles
+  const playerBox = { x: player.x, y: player.y, w: player.w * 0.8, h: player.h * 0.8 };
+
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const ob = obstacles[i];
+    ob.y += speed - ob.speed;
+
+    if (ob.type === 'drunk_car') {
+      ob.swervePhase += ob.swerveSpeed * dt * 0.01;
+      ob.vx = Math.sin(ob.swervePhase) * ob.swerveAmp * dt * 0.02;
+      ob.x += ob.vx;
+      ob.x = Math.max(ROAD_LEFT() + ob.w / 2, Math.min(ROAD_RIGHT() - ob.w / 2, ob.x));
+    }
+
+    if (ob.y > H + 120) { obstacles.splice(i, 1); continue; }
+
+    const obBox = { x: ob.x, y: ob.y, w: ob.w * 0.85, h: ob.h * 0.85 };
+
+    if (rectsOverlap(playerBox, obBox)) {
+      if (beerPower && (beerPower.name === 'GHOST RIDE')) {
+        // Phase through
+        continue;
+      }
+      if (beerPower && (beerPower.name === 'INVINCIBLE' || beerPower.name === 'RAGE MODE')) {
+        // Destroy obstacle
+        spawnParticle(ob.x, ob.y, '#ff8800', 15);
+        spawnText(ob.x, ob.y - 20, beerPower.name === 'RAGE MODE' ? 'SMASH!' : 'BOOM!', '#ffcc00');
+        score += 200;
+        obstacles.splice(i, 1);
+        screenShake = 6;
+        shakeTimer = 8;
+        continue;
+      }
+
+      // Take damage
+      hp--;
+      spawnParticle(player.x, player.y, '#ff4444', 20);
+      screenShake = 10;
+      shakeTimer = 15;
+      obstacles.splice(i, 1);
+
+      if (hp <= 0) {
+        die();
+        return;
+      } else {
+        spawnText(player.x, player.y - 30, `-1 HP (${hp} left)`, '#ff4444');
+      }
+    }
+  }
+
+  // Update pickups
+  const magnetRange = (30 + upgrades.coinMagnet * 15) * SCALE;
+
+  for (let i = pickups.length - 1; i >= 0; i--) {
+    const p = pickups[i];
+    p.y += speed;
+
+    if (p.y > H + 50) { pickups.splice(i, 1); continue; }
+
+    // Beer vision spawns extra coins
+    if (beerPower && beerPower.name === 'BEER VISION' && p.type === 'coin') {
+      p.size = 14 * SCALE;
+    }
+
+    const d = dist(player, p);
+    const pickRange = p.type === 'beer' ? 30 * SCALE : magnetRange;
+
+    if (d < pickRange) {
+      if (p.type === 'coin') {
+        comboCounter++;
+        comboTimer = 120;
+        const coinVal = beerPower && beerPower.name === 'BEER VISION' ? 3 : 1;
+        const comboMul = Math.min(5, 1 + Math.floor(comboCounter / 5));
+        const earned = coinVal * comboMul;
+        coinsThisRun += earned;
+        score += earned * 50;
+        spawnParticle(p.x, p.y, '#ffdd44', 5);
+        if (comboMul > 1) {
+          spawnText(p.x, p.y - 15, `x${comboMul}`, '#ffdd44');
+        }
+      } else if (p.type === 'beer') {
+        activateBeer();
+        spawnParticle(p.x, p.y, '#ffaa00', 12);
+      }
+      pickups.splice(i, 1);
+    }
+  }
+
+  // Update particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= 1;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Screen shake decay
+  if (shakeTimer > 0) {
+    shakeTimer--;
+    if (shakeTimer <= 0) screenShake = 0;
+  }
+}
+
+function activateBeer() {
+  const dur = (180 + upgrades.beerDuration * 40);
+  beerTimer = dur;
+  beerPower = BEER_POWERS[Math.floor(Math.random() * BEER_POWERS.length)];
+  // Big, slow-moving announcement text
+  particles.push({
+    x: W / 2, y: H * 0.35, vx: 0, vy: -0.3,
+    life: 240, maxLife: 240,
+    color: beerPower.color, size: 0,
+    text: '🍺 ' + beerPower.name + '!',
+    big: true
+  });
+  particles.push({
+    x: W / 2, y: H * 0.35 + 40 * SCALE, vx: 0, vy: -0.3,
+    life: 240, maxLife: 240,
+    color: beerPower.color, size: 0,
+    text: beerPower.desc,
+    big: false
+  });
+  screenShake = 4;
+  shakeTimer = 10;
+}
+
+function die() {
+  state = 'dead';
+  totalCoins += coinsThisRun;
+  spawnParticle(player.x, player.y, '#ff0000', 30);
+  spawnParticle(player.x, player.y, '#ffaa00', 20);
+  // Submit score and refresh leaderboard
+  if (playerName) {
+    submitScore(playerName, score, distance).then(() => refreshLeaderboards());
+  } else {
+    refreshLeaderboards();
+  }
+  showDeathScreen();
+}
+
+// --- RENDER ---
+function render() {
+  ctx.save();
+
+  // Screen shake
+  if (screenShake > 0) {
+    ctx.translate(
+      (Math.random() - 0.5) * screenShake * 2,
+      (Math.random() - 0.5) * screenShake * 2
+    );
+  }
+
+  // Background
+  ctx.fillStyle = '#2a5a2a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Road
+  ctx.fillStyle = '#444';
+  ctx.fillRect(ROAD_LEFT(), 0, ROAD_W(), H);
+
+  // Road edges
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(ROAD_LEFT() - 3, 0, 3, H);
+  ctx.fillRect(ROAD_RIGHT(), 0, 3, H);
+
+  // Lane markers
+  ctx.fillStyle = '#888';
+  for (const my of roadMarkers) {
+    for (let l = 1; l < LANE_COUNT; l++) {
+      const lx = ROAD_LEFT() + l * LANE_W() - 1.5;
+      ctx.fillRect(lx, my, 3, 25);
+    }
+  }
+
+  // Grass detail
+  const grassSeed = Math.floor(scrollY / 40);
+  for (let i = 0; i < 20; i++) {
+    const gy = ((grassSeed + i) * 47 % (H + 40)) - 20 + (scrollY % 40);
+    const gx1 = ((grassSeed + i) * 73 % Math.floor(ROAD_LEFT() - 10)) + 4;
+    const gx2 = ROAD_RIGHT() + 8 + ((grassSeed + i) * 91 % (W - ROAD_RIGHT() - 12));
+    ctx.fillStyle = '#3a7a3a';
+    ctx.fillRect(gx1, gy, 4, 4);
+    ctx.fillRect(gx2, gy, 4, 4);
+  }
+
+  // Pickups
+  for (const p of pickups) {
+    if (p.type === 'beer') {
+      drawBeer(p.x, p.y, p.size);
+    } else {
+      drawCoin(p.x, p.y, p.size);
+    }
+  }
+
+  // Projectiles
+  for (const pr of projectiles) {
+    ctx.fillStyle = pr.color;
+    ctx.shadowColor = pr.color;
+    ctx.shadowBlur = 6;
+    ctx.fillRect(pr.x - pr.w / 2, pr.y - pr.h / 2, pr.w, pr.h);
+    // Bright tip
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(pr.x - pr.w / 4, pr.y - pr.h / 2, pr.w / 2, pr.h * 0.3);
+    ctx.shadowBlur = 0;
+  }
+
+  // Obstacles
+  for (const ob of obstacles) {
+    if (ob.type === 'barrier') {
+      ctx.fillStyle = ob.color1;
+      ctx.fillRect(ob.x - ob.w / 2, ob.y - ob.h / 2, ob.w, ob.h);
+      // Stripes
+      ctx.fillStyle = '#fff';
+      for (let s = 0; s < ob.w; s += 12 * SCALE) {
+        ctx.fillRect(ob.x - ob.w / 2 + s, ob.y - ob.h / 2, 6 * SCALE, ob.h);
+      }
+    } else {
+      const tilt = ob.type === 'drunk_car' ? Math.sin(ob.swervePhase || 0) * 0.3 : 0;
+      drawCar(ob.x - ob.w / 2, ob.y - ob.h / 2, ob.w, ob.h, ob.color1, ob.color2, tilt);
+    }
+  }
+
+  // Player
+  if (state === 'playing' || state === 'dead') {
+    let pColor1 = '#ee4422';
+    let pColor2 = '#aa2211';
+
+    if (beerPower) {
+      const flash = Math.sin(gameTime * 0.3) > 0;
+      pColor1 = flash ? beerPower.color : '#ee4422';
+      pColor2 = flash ? '#fff' : '#aa2211';
+
+      // Aura
+      ctx.globalAlpha = 0.15 + Math.sin(gameTime * 0.2) * 0.1;
+      ctx.fillStyle = beerPower.color;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, 50 * SCALE, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    drawCar(player.x - player.w / 2, player.y - player.h / 2, player.w, player.h, pColor1, pColor2, player.tilt);
+
+    // HP indicator
+    if (hp > 1) {
+      for (let h = 0; h < hp; h++) {
+        ctx.fillStyle = '#ff4444';
+        ctx.fillRect(player.x - (hp * 6) / 2 + h * 8, player.y + player.h / 2 + 5, 6, 4);
+      }
+    }
+  }
+
+  // Particles
+  for (const p of particles) {
+    const alpha = p.life / p.maxLife;
+    if (p.text) {
+      ctx.globalAlpha = Math.min(1, alpha * 2);
+      const fontSize = p.big ? Math.round(36 * SCALE) : Math.round(20 * SCALE);
+      ctx.font = `bold ${fontSize}px monospace`;
+      ctx.textAlign = 'center';
+      // Black outline for readability
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 4;
+      ctx.lineJoin = 'round';
+      ctx.strokeText(p.text, p.x, p.y);
+      ctx.fillStyle = p.color;
+      ctx.fillText(p.text, p.x, p.y);
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // Beer power overlay text
+  if (beerPower && beerTimer > 0) {
+    ctx.globalAlpha = 0.8 + Math.sin(gameTime * 0.15) * 0.15;
+    ctx.font = `bold ${Math.round(30 * SCALE)}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 5;
+    ctx.lineJoin = 'round';
+    ctx.strokeText('🍺 ' + beerPower.name, W / 2, H * 0.15);
+    ctx.fillStyle = beerPower.color;
+    ctx.fillText('🍺 ' + beerPower.name, W / 2, H * 0.15);
+    ctx.font = `bold ${Math.round(18 * SCALE)}px monospace`;
+    ctx.lineWidth = 3;
+    ctx.strokeText(beerPower.desc, W / 2, H * 0.15 + 30 * SCALE);
+    ctx.fillText(beerPower.desc, W / 2, H * 0.15 + 30 * SCALE);
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 1;
+  }
+
+  // Combo display
+  if (comboCounter >= 5 && comboTimer > 0) {
+    ctx.fillStyle = '#ffdd44';
+    ctx.globalAlpha = 0.8;
+    ctx.font = `bold ${Math.round(13 * SCALE)}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(`COMBO x${Math.min(5, 1 + Math.floor(comboCounter / 5))}`, W / 2, H * 0.12);
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.restore();
+
+  // HUD
+  if (state === 'playing') {
+    document.getElementById('hud-score').textContent = `Score: ${score}`;
+    document.getElementById('hud-dist').textContent = `Dist: ${Math.floor(distance)}m`;
+    document.getElementById('hud-coins').textContent = `Coins: ${coinsThisRun}`;
+    document.getElementById('hud-run').textContent = `Run #${runNumber}`;
+    document.getElementById('hud-speed').textContent = `Speed: ${speed.toFixed(1)}`;
+    const beerPct = beerTimer > 0 ? (beerTimer / (180 + upgrades.beerDuration * 40)) * 100 : 0;
+    document.getElementById('beer-fill').style.width = beerPct + '%';
+    document.getElementById('beer-fill').style.background = beerPower ? beerPower.color : '#ffaa00';
+    const cdMax = Math.max(500, 1200 - upgrades.shotSpeed * 80);
+    const cdPct = shootCooldown > 0 ? ((cdMax - shootCooldown) / cdMax) * 100 : 100;
+    document.getElementById('cooldown-fill').style.width = cdPct + '%';
+  }
+}
+
+// --- SEPPO RENDERING ---
+function getSeppoDirection() {
+  const vx = player.vx;
+  const vy = player.vy;
+  const threshold = 0.5;
+  const left = vx < -threshold;
+  const right = vx > threshold;
+  const up = vy < -threshold;
+  const down = vy > threshold;
+
+  if (up && left) return 'north-west';
+  if (up && right) return 'north-east';
+  if (down && left) return 'south-west';
+  if (down && right) return 'south-east';
+  if (left) return 'west';
+  if (right) return 'east';
+  if (up) return 'north';
+  return 'south'; // default facing south (toward viewer)
+}
+
+function drawSeppo() {
+  const spriteSize = 48 * SCALE * 1.2;
+  const sx = player.x - spriteSize / 2;
+  const sy = player.y - spriteSize / 2 - 5 * SCALE; // slightly above car center
+
+  let img = null;
+
+  if (state === 'dead' && !seppoDeathDone) {
+    // Death animation
+    seppoAnimTimer++;
+    if (seppoAnimTimer % 8 === 0 && seppoDeathFrame < seppoDeath.length - 1) {
+      seppoDeathFrame++;
+    }
+    if (seppoDeathFrame >= seppoDeath.length - 1) seppoDeathDone = true;
+    img = seppoDeath[seppoDeathFrame];
+  } else if (state === 'dead' && seppoDeathDone) {
+    img = seppoDeath[seppoDeath.length - 1];
+  } else if (beerPower && beerTimer > 0) {
+    // Drinking animation while beer power active
+    seppoAnimTimer++;
+    if (seppoAnimTimer % 10 === 0) {
+      seppoAnimFrame = (seppoAnimFrame + 1) % seppoDrinking.length;
+    }
+    img = seppoDrinking[seppoAnimFrame];
+  } else {
+    // Use directional sprite based on movement
+    const dir = getSeppoDirection();
+    img = seppoSprites[dir];
+  }
+
+  if (img && img.complete && img.naturalWidth > 0) {
+    ctx.drawImage(img, sx, sy, spriteSize, spriteSize);
+  }
+}
+
+// --- GAME LOOP ---
+let lastTime = 0;
+function loop(time) {
+  const dt = Math.min(time - lastTime, 50);
+  lastTime = time;
+
+  update(dt);
+  render();
+
+  // Keep updating particles even when dead
+  if (state === 'dead') {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= 1;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  requestAnimationFrame(loop);
+}
+
+// --- UI ---
+const overlay = document.getElementById('ui-overlay');
+const allMenus = document.querySelectorAll('.menu');
+const hud = document.getElementById('hud');
+const touchControls = document.getElementById('touch-controls');
+
+function showPage(id) {
+  allMenus.forEach(m => m.classList.remove('visible'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('visible');
+}
+
+function showMenu() {
+  state = 'menu';
+  overlay.classList.add('active');
+  hud.style.display = 'none';
+  touchControls.classList.remove('active');
+  showPage('menu-title');
+}
+
+function showDeathScreen() {
+  overlay.classList.add('active');
+  hud.style.display = 'none';
+  touchControls.classList.remove('active');
+
+  document.getElementById('dead-score').textContent = `Score: ${score}`;
+  document.getElementById('dead-dist').textContent = `Distance: ${Math.floor(distance)}m`;
+  document.getElementById('dead-coins').textContent = `Coins earned: ${coinsThisRun}`;
+  document.getElementById('dead-total-coins').textContent = `Total coins: ${totalCoins}`;
+
+  showPage('menu-dead-stats');
+}
+
+function renderUpgrades() {
+  const grid = document.getElementById('upgrade-grid');
+  grid.innerHTML = '';
+  document.getElementById('upgrade-coins').textContent = `Total coins: ${totalCoins}`;
+
+  for (const def of UPGRADE_DEFS) {
+    const level = upgrades[def.key];
+    if (level >= def.max) continue;
+    const cost = def.cost(level);
+
+    const card = document.createElement('div');
+    card.className = 'upgrade-card';
+    card.innerHTML = `
+      <div class="icon">${def.icon}</div>
+      <div class="name">${def.name}</div>
+      <div class="desc">${def.desc} (Lv ${level})</div>
+      <div class="cost">${cost} coins</div>
+    `;
+
+    if (totalCoins >= cost) {
+      card.addEventListener('click', () => {
+        totalCoins -= cost;
+        upgrades[def.key]++;
+        renderUpgrades();
+      });
+    } else {
+      card.style.opacity = '0.4';
+      card.style.cursor = 'default';
+    }
+
+    grid.appendChild(card);
+  }
+}
+
+function startGame() {
+  saveName();
+  if (!playerName) { usernameInput.style.borderColor = '#ff0000'; return; }
+  initRun();
+  state = 'playing';
+  overlay.classList.remove('active');
+  showPage(null);
+  hud.style.display = 'flex';
+  if (isMobile) touchControls.classList.add('active');
+}
+
+// Linear menu flow: Title → Name → Tutorial → Leaderboard → Start
+document.getElementById('btn-to-name').addEventListener('click', () => {
+  showPage('menu-name');
+});
+document.getElementById('btn-to-tutorial').addEventListener('click', () => {
+  saveName();
+  if (!playerName) { usernameInput.style.borderColor = '#ff0000'; return; }
+  usernameInput.style.borderColor = '#ff6600';
+  showPage('menu-tutorial');
+});
+document.getElementById('btn-to-leaderboard').addEventListener('click', () => {
+  refreshLeaderboards();
+  showPage('menu-leaderboard');
+});
+document.getElementById('btn-start').addEventListener('click', startGame);
+
+// Death flow: Stats → Upgrades → Leaderboard → Retry
+document.getElementById('btn-to-upgrades').addEventListener('click', () => {
+  renderUpgrades();
+  showPage('menu-dead-upgrades');
+});
+document.getElementById('btn-to-dead-lb').addEventListener('click', () => {
+  refreshLeaderboards();
+  showPage('menu-dead-lb');
+});
+document.getElementById('btn-retry').addEventListener('click', startGame);
+
+// Enter to advance
+window.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.tagName !== 'INPUT') {
+    if (state === 'menu' || state === 'dead') {
+      e.preventDefault();
+      // Find the visible menu's primary button and click it
+      const vis = document.querySelector('.menu.visible .btn');
+      if (vis) vis.click();
+    }
+  }
+});
+
+// Kick off
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

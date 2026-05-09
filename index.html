@@ -33,7 +33,7 @@ canvas {
   image-rendering: pixelated;
 }
 @media (max-width: 799px) {
-  canvas { position: fixed; top: 0; left: 0; margin: 0; width: 100vw !important; height: 100vh !important; height: 100dvh !important; }
+  canvas { position: fixed; top: 0; left: 0; margin: 0; width: 100% !important; height: 100% !important; }
 }
 #ui-overlay {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -92,9 +92,8 @@ canvas {
 }
 /* Joystick */
 .joystick-zone {
-  position: absolute; bottom: 3vh; left: 3vw;
-  width: 40vw; height: 40vw;
-  max-width: 200px; max-height: 200px;
+  position: absolute; bottom: 2vh; left: 2vw;
+  width: 45vw; height: 45vw;
   pointer-events: all;
   -webkit-tap-highlight-color: transparent;
 }
@@ -121,8 +120,8 @@ canvas {
   pointer-events: none;
 }
 .fire-btn {
-  width: 26vw; height: 26vw;
-  max-width: 130px; max-height: 130px;
+  width: 28vw; height: 28vw;
+  max-width: 140px; max-height: 140px;
   border-radius: 50%;
   pointer-events: all;
   display: flex; align-items: center; justify-content: center;
@@ -508,27 +507,30 @@ const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 // --- SIZING ---
 let W, H, SCALE;
 function resize() {
-  const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-  const isNarrow = vw < 800;
+  const screenW = window.innerWidth;
+  const screenH = window.innerHeight;
+  const isNarrow = screenW < 800;
+  const dpr = isNarrow ? (window.devicePixelRatio || 1) : 1;
   if (isNarrow) {
-    W = vw;
-    H = vh;
+    W = Math.round(screenW * dpr);
+    H = Math.round(screenH * dpr);
+    canvas.width = W;
+    canvas.height = H;
+    // Let CSS handle display size on mobile
   } else {
     const maxW = 1100;
     const aspect = 16 / 10;
-    H = vh;
+    H = screenH;
     W = Math.min(maxW, Math.floor(H * aspect));
-    if (W > vw) { W = vw; H = Math.floor(W / aspect); }
+    if (W > screenW) { W = screenW; H = Math.floor(W / aspect); }
+    canvas.width = W;
+    canvas.height = H;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
   }
-  canvas.width = W;
-  canvas.height = H;
-  canvas.style.width = W + 'px';
-  canvas.style.height = H + 'px';
   SCALE = isNarrow ? W / 360 : W / 1100;
 }
 window.addEventListener('resize', resize);
-if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
 resize();
 
 // --- CONSTANTS ---

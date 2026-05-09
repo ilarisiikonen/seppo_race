@@ -1,7 +1,8 @@
-const CACHE_NAME = 'seppo-race-v1';
+const CACHE_NAME = 'seppo-race-v2';
 const ASSETS = [
   '/',
   '/index.html',
+  '/firebase-config.js',
   '/manifest.json',
   '/seppo/rotations/south.png',
   '/seppo/rotations/north.png',

@@ -32,6 +32,9 @@ canvas {
   margin: 0 auto;
   image-rendering: pixelated;
 }
+@media (max-width: 799px) {
+  canvas { margin: 0; }
+}
 #ui-overlay {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -89,41 +92,41 @@ canvas {
 }
 /* D-pad */
 .dpad {
-  position: absolute; bottom: 30px; left: 20px;
-  width: 140px; height: 140px;
+  position: absolute; bottom: 30px; left: 16px;
+  width: 180px; height: 180px;
   pointer-events: none;
 }
 .dpad-btn {
   position: absolute;
-  width: 46px; height: 46px;
+  width: 60px; height: 60px;
   background: rgba(60,60,60,0.85);
   border: 2px solid rgba(255,255,255,0.25);
   pointer-events: all;
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.2em;
+  font-size: 1.5em;
   color: rgba(255,255,255,0.7);
   -webkit-tap-highlight-color: transparent;
 }
 .dpad-btn.pressed { background: rgba(120,120,120,0.9); color: #fff; }
 .dpad-center {
   position: absolute;
-  width: 46px; height: 46px;
-  top: 47px; left: 47px;
+  width: 60px; height: 60px;
+  top: 60px; left: 60px;
   background: rgba(50,50,50,0.85);
   border: 2px solid rgba(255,255,255,0.15);
   border-radius: 4px;
 }
-#dpad-up { top: 0; left: 47px; border-radius: 8px 8px 0 0; }
-#dpad-down { bottom: 0; left: 47px; border-radius: 0 0 8px 8px; }
-#dpad-left { top: 47px; left: 0; border-radius: 8px 0 0 8px; }
-#dpad-right { top: 47px; right: 0; border-radius: 0 8px 8px 0; }
+#dpad-up { top: 0; left: 60px; border-radius: 8px 8px 0 0; }
+#dpad-down { bottom: 0; left: 60px; border-radius: 0 0 8px 8px; }
+#dpad-left { top: 60px; left: 0; border-radius: 8px 0 0 8px; }
+#dpad-right { top: 60px; right: 0; border-radius: 0 8px 8px 0; }
 /* Action buttons */
 .action-btns {
-  position: absolute; bottom: 40px; right: 20px;
+  position: absolute; bottom: 50px; right: 20px;
   pointer-events: none;
 }
 .action-btn {
-  width: 70px; height: 70px;
+  width: 90px; height: 90px;
   border-radius: 50%;
   pointer-events: all;
   display: flex; align-items: center; justify-content: center;
@@ -135,7 +138,7 @@ canvas {
 .action-btn.pressed { box-shadow: 0 1px 0 rgba(0,0,0,0.4); transform: translateY(2px); }
 #btn-a {
   background: rgba(220,50,50,0.85); border: 2px solid rgba(255,100,100,0.5);
-  color: #fff; font-size: 1.4em;
+  color: #fff; font-size: 1.8em;
 }
 #btn-a.pressed { background: rgba(255,80,80,0.95); }
 .btn-label {
@@ -517,17 +520,22 @@ const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 let W, H, SCALE;
 function resize() {
   const isNarrow = window.innerWidth < 800;
-  const maxW = isNarrow ? window.innerWidth : 1100;
-  const maxH = window.innerHeight;
-  const aspect = isNarrow ? 9 / 16 : 16 / 10;
-  H = maxH;
-  W = Math.min(maxW, Math.floor(H * aspect));
-  if (W > window.innerWidth) { W = window.innerWidth; H = Math.floor(W / aspect); }
+  if (isNarrow) {
+    W = window.innerWidth;
+    H = window.innerHeight;
+  } else {
+    const maxW = 1100;
+    const maxH = window.innerHeight;
+    const aspect = 16 / 10;
+    H = maxH;
+    W = Math.min(maxW, Math.floor(H * aspect));
+    if (W > window.innerWidth) { W = window.innerWidth; H = Math.floor(W / aspect); }
+  }
   canvas.width = W;
   canvas.height = H;
   canvas.style.width = W + 'px';
   canvas.style.height = H + 'px';
-  SCALE = W / (isNarrow ? 500 : 1100);
+  SCALE = isNarrow ? W / 400 : W / 1100;
 }
 window.addEventListener('resize', resize);
 resize();

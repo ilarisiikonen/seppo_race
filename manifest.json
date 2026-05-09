@@ -1,0 +1,18 @@
+{
+  "name": "Seppo Last Race",
+  "short_name": "Seppo Race",
+  "description": "Seppo's last ride. A rogue-like top-down driving game.",
+  "start_url": "/index.html",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "icons": [
+    {
+      "src": "seppo/rotations/south.png",
+      "sizes": "64x64",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

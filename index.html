@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Seppo Last Race</title>
+<meta name="description" content="Seppo's last ride. A rogue-like top-down driving game.">
+<meta name="theme-color" content="#111111">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Seppo Race">
+<link rel="apple-touch-icon" href="seppo/rotations/south.png">
+<link rel="manifest" href="manifest.json">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
@@ -68,9 +75,9 @@ canvas {
 .beer-fill { height: 100%; background: #ffaa00; transition: width 0.1s; }
 .cooldown-bar { width: 80px; height: 6px; background: #333; border: 1px solid #555; margin-top: 2px; }
 .cooldown-fill { height: 100%; background: #ffdd00; transition: width 0.05s; }
-/* Mobile touch controls */
+/* Mobile touch controls - Nintendo style */
 #touch-controls {
-  position: absolute; bottom: 0; left: 0; width: 100%; height: 40%;
+  position: absolute; bottom: 0; left: 0; width: 100%; height: 45%;
   z-index: 8; pointer-events: none;
   display: none;
 }
@@ -78,32 +85,73 @@ canvas {
 @media (min-width: 800px) {
   #touch-controls, #touch-controls.active { display: none !important; }
 }
-.touch-btn {
+/* D-pad */
+.dpad {
+  position: absolute; bottom: 30px; left: 20px;
+  width: 140px; height: 140px;
+  pointer-events: none;
+}
+.dpad-btn {
   position: absolute;
-  width: 60px; height: 60px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.12);
-  border: 2px solid rgba(255,255,255,0.3);
+  width: 46px; height: 46px;
+  background: rgba(60,60,60,0.85);
+  border: 2px solid rgba(255,255,255,0.25);
   pointer-events: all;
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.5em;
-  color: rgba(255,255,255,0.6);
+  font-size: 1.2em;
+  color: rgba(255,255,255,0.7);
+  -webkit-tap-highlight-color: transparent;
+}
+.dpad-btn.pressed { background: rgba(120,120,120,0.9); color: #fff; }
+.dpad-center {
+  position: absolute;
+  width: 46px; height: 46px;
+  top: 47px; left: 47px;
+  background: rgba(50,50,50,0.85);
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+}
+#dpad-up { top: 0; left: 47px; border-radius: 8px 8px 0 0; }
+#dpad-down { bottom: 0; left: 47px; border-radius: 0 0 8px 8px; }
+#dpad-left { top: 47px; left: 0; border-radius: 8px 0 0 8px; }
+#dpad-right { top: 47px; right: 0; border-radius: 0 8px 8px 0; }
+/* Action buttons */
+.action-btns {
+  position: absolute; bottom: 40px; right: 20px;
+  pointer-events: none;
+}
+.action-btn {
+  width: 70px; height: 70px;
+  border-radius: 50%;
+  pointer-events: all;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: bold;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.1s;
+  box-shadow: 0 3px 0 rgba(0,0,0,0.4);
 }
-.touch-btn.pressed { background: rgba(255,255,255,0.35); }
-#tb-left { bottom: 30px; left: 20px; }
-#tb-right { bottom: 30px; left: 100px; }
-#tb-up { bottom: 100px; left: 60px; }
-#tb-down { bottom: -30px; left: 60px; display: none; }
-#tb-fire { bottom: 30px; right: 20px; width: 80px; height: 80px; font-size: 2em; background: rgba(255,100,0,0.2); border-color: rgba(255,100,0,0.5); }
-#tb-fire.pressed { background: rgba(255,100,0,0.5); }
+.action-btn.pressed { box-shadow: 0 1px 0 rgba(0,0,0,0.4); transform: translateY(2px); }
+#btn-a {
+  background: rgba(220,50,50,0.85); border: 2px solid rgba(255,100,100,0.5);
+  color: #fff; font-size: 1.4em;
+}
+#btn-a.pressed { background: rgba(255,80,80,0.95); }
+.btn-label {
+  position: absolute; font-size: 0.5em; color: rgba(255,255,255,0.4);
+  font-family: 'Courier New', monospace; bottom: -16px;
+}
 .info-box {
   text-align: left; display: inline-block; background: #1a1a1a;
-  border: 1px solid #444; padding: 10px 14px; border-radius: 4px;
-  margin-top: 10px; width: 90%; max-width: 420px;
+  border: 1px solid #444; padding: 8px 12px; border-radius: 4px;
+  margin-top: 6px; width: 90%; max-width: 420px;
 }
-.info-box p { font-size: clamp(0.75em, 2.8vw, 0.9em) !important; margin: 4px 0 !important; }
+.info-box p { font-size: clamp(0.65em, 2.4vw, 0.82em) !important; margin: 2px 0 !important; line-height: 1.3 !important; }
+.lore-box {
+  text-align: left; display: inline-block; background: #1a0a0a;
+  border: 1px solid #662222; padding: 10px 14px; border-radius: 4px;
+  margin: 8px 0; width: 90%; max-width: 420px;
+}
+.lore-box p { font-size: clamp(0.7em, 2.5vw, 0.85em); color: #cc8888; margin: 3px 0; line-height: 1.35; }
 /* Username input */
 .username-row {
   display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -140,32 +188,43 @@ canvas {
   <div class="hud-right">
     <span id="hud-run">Run #1</span>
     <span id="hud-speed">Speed: 0</span>
+    <span id="hud-beer-timer" style="color:#ffaa00;font-size:0.9em;display:none;"></span>
     <div class="beer-bar"><div class="beer-fill" id="beer-fill" style="width:0%"></div></div>
     <div class="cooldown-bar"><div class="cooldown-fill" id="cooldown-fill" style="width:0%"></div></div>
   </div>
 </div>
 
 <div id="touch-controls">
-  <div class="touch-btn" id="tb-left">◀</div>
-  <div class="touch-btn" id="tb-right">▶</div>
-  <div class="touch-btn" id="tb-up">▲</div>
-  <div class="touch-btn" id="tb-fire">🔥</div>
+  <div class="dpad">
+    <div class="dpad-center"></div>
+    <div class="dpad-btn" id="dpad-up">▲</div>
+    <div class="dpad-btn" id="dpad-down">▼</div>
+    <div class="dpad-btn" id="dpad-left">◀</div>
+    <div class="dpad-btn" id="dpad-right">▶</div>
+  </div>
+  <div class="action-btns">
+    <div class="action-btn" id="btn-a">A<span class="btn-label">FIRE</span></div>
+  </div>
 </div>
 
 <div id="ui-overlay" class="active">
   <!-- PAGE 1: Title -->
   <div class="menu visible" id="menu-title">
-    <img src="seppo/rotations/south.png" style="width:80px;height:80px;image-rendering:pixelated;margin-bottom:8px;" alt="Seppo">
+    <img src="seppo/rotations/south.png" style="width:72px;height:72px;image-rendering:pixelated;margin-bottom:6px;" alt="Seppo">
     <h1>🍺 SEPPO LAST RACE 🏎️</h1>
-    <h2>One more beer. One more ride.</h2>
-    <p style="color:#ff8866;">Every run is different. Every crash is final.</p>
+    <div class="lore-box">
+      <p>The debt collector showed up at Seppo's door. An old friend, sent to settle what was owed. Words turned to shouts. Shouts turned to something worse.</p>
+      <p>When it was over, his friend lay still on the kitchen floor. Seppo stood there, hands shaking, knowing nothing could undo what he'd done.</p>
+      <p>He grabbed his keys and drove. On a dark stretch of road, a figure stepped out of nowhere. The car hit them before Seppo could even think. He didn't stop.</p>
+      <p>Now blue lights flash in the rearview mirror. The sirens are getting closer. There is only the road ahead.</p>
+    </div>
     <div class="btn" id="btn-to-name">CONTINUE</div>
   </div>
 
   <!-- PAGE 2: Name -->
   <div class="menu" id="menu-name">
-    <h1>👤 WHO ARE YOU?</h1>
-    <p>Enter your name for the leaderboard</p>
+    <h1>ENTER YOUR NAME</h1>
+    <p>For the leaderboard</p>
     <div class="username-row">
       <input type="text" id="username-input" placeholder="Your name" maxlength="16" autocomplete="off">
     </div>
@@ -175,35 +234,60 @@ canvas {
 
   <!-- PAGE 3: How to Play -->
   <div class="menu" id="menu-tutorial">
-    <h1>📖 HOW TO PLAY</h1>
+    <h1 style="margin-bottom:4px;">HOW TO PLAY</h1>
     <div class="info-box">
-      <p style="color:#ffcc00;">🎮 CONTROLS:</p>
-      <p style="color:#fff;">⌨️ Arrow keys / WASD — Steer &amp; move</p>
-      <p style="color:#fff;">⌨️ Space / Z — Shoot projectiles</p>
-      <p style="color:#fff;">📱 On-screen D-pad &amp; fire button on mobile</p>
+      <p style="color:#ffcc00;">CONTROLS</p>
+      <p style="color:#fff;">Arrow keys / WASD — Steer and move</p>
+      <p style="color:#fff;">Space / Z — Shoot projectiles</p>
+      <p style="color:#fff;">Mobile: D-pad + A button</p>
     </div>
     <div class="info-box">
-      <p style="color:#ffcc00;">🎯 GOAL:</p>
-      <p>Drive as far as you can! Dodge or shoot obstacles.</p>
-      <p>Collect <span style="color:#ffdd44;">coins (¢)</span> to buy upgrades between runs.</p>
-      <p>Collect <span style="color:#ffaa00;">beers 🍺</span> for random super powers!</p>
+      <p style="color:#ffcc00;">BEER POWERS</p>
+      <p><span style="color:#ffcc00;">INVINCIBLE</span> — Cannot take damage, smash cars</p>
+      <p><span style="color:#ff4400;">SPEED DEMON</span> — 1.8x speed boost</p>
+      <p><span style="color:#aaccff;">GHOST RIDE</span> — Phase through all obstacles</p>
+      <p><span style="color:#44ff44;">BEER VISION</span> — Coins worth 3x and bigger</p>
+      <p><span style="color:#ff0066;">RAGE MODE</span> — Speed + smash + extra shot damage</p>
     </div>
     <div class="info-box">
-      <p style="color:#ffcc00;">🍺 BEER POWERS:</p>
-      <p><span style="color:#ffcc00;">☀ INVINCIBLE</span> <span style="color:#aaa;">— Cannot take damage, smash cars on contact</span></p>
-      <p><span style="color:#ff4400;">🔥 SPEED DEMON</span> <span style="color:#aaa;">— 1.8x speed boost</span></p>
-      <p><span style="color:#aaccff;">👻 GHOST RIDE</span> <span style="color:#aaa;">— Phase through all obstacles</span></p>
-      <p><span style="color:#44ff44;">👁 BEER VISION</span> <span style="color:#aaa;">— Coins worth 3x &amp; bigger</span></p>
-      <p><span style="color:#ff0066;">💢 RAGE MODE</span> <span style="color:#aaa;">— 1.4x speed, smash cars, +2 shot damage</span></p>
-    </div>
-    <div class="info-box">
-      <p style="color:#ffcc00;">💡 TIPS:</p>
-      <p>🔫 Shooting has a cooldown — watch the yellow bar in the HUD</p>
-      <p>🧲 Coin magnet upgrade auto-collects nearby coins</p>
-      <p>🗡️ Piercing shots go through multiple enemies</p>
-      <p>⚡ Difficulty ramps up over time — upgrade wisely!</p>
+      <p style="color:#ffcc00;">TIPS</p>
+      <p>Yellow bar shows shooting cooldown</p>
+      <p>Coin magnet upgrade auto-collects nearby coins</p>
+      <p>Piercing shots go through multiple enemies</p>
+      <p>Difficulty increases over time</p>
+      <p>Collect beers for random powers</p>
+      <p>Spend coins on upgrades after each death</p>
     </div>
     <div class="btn" id="btn-to-leaderboard">NEXT</div>
+  </div>
+
+  <!-- Tutorial (accessible from other pages) -->
+  <div class="menu" id="menu-tutorial-view">
+    <h1 style="margin-bottom:4px;">HOW TO PLAY</h1>
+    <div class="info-box">
+      <p style="color:#ffcc00;">CONTROLS</p>
+      <p style="color:#fff;">Arrow keys / WASD — Steer and move</p>
+      <p style="color:#fff;">Space / Z — Shoot projectiles</p>
+      <p style="color:#fff;">Mobile: D-pad + A button</p>
+    </div>
+    <div class="info-box">
+      <p style="color:#ffcc00;">BEER POWERS</p>
+      <p><span style="color:#ffcc00;">INVINCIBLE</span> — Cannot take damage, smash cars</p>
+      <p><span style="color:#ff4400;">SPEED DEMON</span> — 1.8x speed boost</p>
+      <p><span style="color:#aaccff;">GHOST RIDE</span> — Phase through all obstacles</p>
+      <p><span style="color:#44ff44;">BEER VISION</span> — Coins worth 3x and bigger</p>
+      <p><span style="color:#ff0066;">RAGE MODE</span> — Speed + smash + extra shot damage</p>
+    </div>
+    <div class="info-box">
+      <p style="color:#ffcc00;">TIPS</p>
+      <p>Yellow bar shows shooting cooldown</p>
+      <p>Coin magnet upgrade auto-collects nearby coins</p>
+      <p>Piercing shots go through multiple enemies</p>
+      <p>Difficulty increases over time</p>
+      <p>Collect beers for random powers</p>
+      <p>Spend coins on upgrades after each death</p>
+    </div>
+    <div class="btn" id="btn-howto-back">BACK</div>
   </div>
 
   <!-- PAGE 4: Leaderboard (pre-game) -->
@@ -213,6 +297,7 @@ canvas {
       <p class="lb-loading">Loading...</p>
     </div>
     <div class="btn" id="btn-start">START ENGINE</div>
+    <div class="btn" id="btn-howto-from-lb" style="background:#333;border-color:#666;font-size:0.8em;">📖 HOW TO PLAY</div>
   </div>
 
   <!-- DEATH PAGE 1: Stats -->
@@ -225,6 +310,7 @@ canvas {
     <p class="stat" id="dead-coins">Coins earned: 0</p>
     <p class="stat" id="dead-total-coins">Total coins: 0</p>
     <div class="btn" id="btn-to-upgrades">UPGRADES</div>
+    <div class="btn" id="btn-howto-from-dead" style="background:#333;border-color:#666;font-size:0.8em;">📖 HOW TO PLAY</div>
   </div>
 
   <!-- DEATH PAGE 2: Upgrades -->
@@ -299,15 +385,40 @@ usernameInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.prev
 updateUsernameUI();
 
 // --- LEADERBOARD ---
+function getCarLevel() {
+  let total = 0;
+  for (const key in upgrades) total += upgrades[key];
+  return total;
+}
+
 async function submitScore(name, scoreVal, dist) {
   if (!name) return;
   try {
-    await db.collection('leaderboard').add({
-      name: name.substring(0, 16),
-      score: scoreVal,
-      distance: Math.floor(dist),
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    const docRef = db.collection('leaderboard').doc(name);
+    const doc = await docRef.get();
+    if (doc.exists) {
+      const data = doc.data();
+      const updates = {
+        runs: (data.runs || 0) + 1,
+        carLevel: getCarLevel(),
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      // Only update score/distance if it's a new high score
+      if (scoreVal > (data.score || 0)) {
+        updates.score = scoreVal;
+        updates.distance = Math.floor(dist);
+      }
+      await docRef.update(updates);
+    } else {
+      await docRef.set({
+        name: name.substring(0, 16),
+        score: scoreVal,
+        distance: Math.floor(dist),
+        runs: 1,
+        carLevel: getCarLevel(),
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
   } catch (err) {
     console.warn('Failed to submit score:', err);
   }
@@ -317,11 +428,20 @@ async function fetchLeaderboard() {
   try {
     const snap = await db.collection('leaderboard')
       .orderBy('score', 'desc')
-      .limit(10)
+      .limit(30)
       .get();
+    const seen = {};
     const entries = [];
-    snap.forEach(doc => entries.push(doc.data()));
-    return entries;
+    snap.forEach(doc => {
+      const d = doc.data();
+      const name = d.name;
+      // Keep only highest score per player
+      if (!seen[name]) {
+        seen[name] = true;
+        entries.push(d);
+      }
+    });
+    return entries.slice(0, 10);
   } catch (err) {
     console.warn('Failed to fetch leaderboard:', err);
     return null;
@@ -331,18 +451,18 @@ async function fetchLeaderboard() {
 function renderLeaderboard(containerId, entries, highlightName) {
   const el = document.getElementById(containerId);
   if (!entries) {
-    el.innerHTML = '<h3>🏆 LEADERBOARD</h3><p class="lb-loading">Could not load leaderboard</p>';
+    el.innerHTML = '<p class="lb-loading">Could not load leaderboard</p>';
     return;
   }
   if (entries.length === 0) {
-    el.innerHTML = '<h3>🏆 LEADERBOARD</h3><p class="lb-loading">No scores yet. Be the first!</p>';
+    el.innerHTML = '<p class="lb-loading">No scores yet. Be the first!</p>';
     return;
   }
-  let html = '<h3>🏆 LEADERBOARD</h3><table class="lb-table"><tr><th>#</th><th>Name</th><th>Score</th><th>Dist</th></tr>';
+  let html = '<table class="lb-table"><tr><th>#</th><th>Name</th><th>Score</th><th>Dist</th><th>Runs</th><th>Lv</th></tr>';
   entries.forEach((e, i) => {
     const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
     const isMe = highlightName && e.name === highlightName;
-    html += `<tr class="${isMe ? 'me' : ''}"><td>${medal}</td><td>${e.name}</td><td>${e.score}</td><td>${e.distance || 0}m</td></tr>`;
+    html += `<tr class="${isMe ? 'me' : ''}"><td>${medal}</td><td>${e.name}</td><td>${e.score}</td><td>${e.distance || 0}m</td><td>${e.runs || 1}</td><td>${e.carLevel || 0}</td></tr>`;
   });
   html += '</table>';
   el.innerHTML = html;
@@ -464,7 +584,7 @@ let particles = [];
 let roadMarkers = [];
 let projectiles = [];
 let score = 0, distance = 0, coinsThisRun = 0, speed = 0, baseSpeed = 0, scrollY = 0;
-let beerTimer = 0, beerPower = null, hp = 1;
+let beerTimer = 0, beerMaxDuration = 0, beerPower = null, hp = 1;
 let spawnTimer = 0, difficultyTimer = 0, difficulty = 1;
 let screenShake = 0, shakeTimer = 0;
 let steerInput = 0; // -1 left, 0 none, 1 right
@@ -508,6 +628,7 @@ function initRun() {
   speed = baseSpeed;
   scrollY = 0;
   beerTimer = 0;
+  beerMaxDuration = 0;
   beerPower = null;
   hp = 2 + upgrades.armor;
   spawnTimer = 0;
@@ -727,10 +848,11 @@ function setupTouchBtn(id, callback) {
   el.addEventListener('mouseup', release);
   el.addEventListener('mouseleave', release);
 }
-setupTouchBtn('tb-left', v => touchL = v);
-setupTouchBtn('tb-right', v => touchR = v);
-setupTouchBtn('tb-up', v => touchU = v);
-setupTouchBtn('tb-fire', v => touchFire = v);
+setupTouchBtn('dpad-left', v => touchL = v);
+setupTouchBtn('dpad-right', v => touchR = v);
+setupTouchBtn('dpad-up', v => touchU = v);
+setupTouchBtn('dpad-down', v => touchD = v);
+setupTouchBtn('btn-a', v => touchFire = v);
 
 function getSteer() {
   let s = 0;
@@ -989,8 +1111,9 @@ function update(dt) {
 }
 
 function activateBeer() {
-  const dur = (180 + upgrades.beerDuration * 40);
+  const dur = (5000 + upgrades.beerDuration * 1000);
   beerTimer = dur;
+  beerMaxDuration = dur;
   beerPower = BEER_POWERS[Math.floor(Math.random() * BEER_POWERS.length)];
   // Big, slow-moving announcement text
   particles.push({
@@ -1200,9 +1323,17 @@ function render() {
     document.getElementById('hud-coins').textContent = `Coins: ${coinsThisRun}`;
     document.getElementById('hud-run').textContent = `Run #${runNumber}`;
     document.getElementById('hud-speed').textContent = `Speed: ${speed.toFixed(1)}`;
-    const beerPct = beerTimer > 0 ? (beerTimer / (180 + upgrades.beerDuration * 40)) * 100 : 0;
+    const beerPct = beerTimer > 0 ? (beerTimer / beerMaxDuration) * 100 : 0;
     document.getElementById('beer-fill').style.width = beerPct + '%';
     document.getElementById('beer-fill').style.background = beerPower ? beerPower.color : '#ffaa00';
+    const beerTimerEl = document.getElementById('hud-beer-timer');
+    if (beerPower && beerTimer > 0) {
+      beerTimerEl.style.display = 'block';
+      beerTimerEl.style.color = beerPower.color;
+      beerTimerEl.textContent = beerPower.name + ' ' + (beerTimer / 1000).toFixed(1) + 's';
+    } else {
+      beerTimerEl.style.display = 'none';
+    }
     const cdMax = Math.max(500, 1200 - upgrades.shotSpeed * 80);
     const cdPct = shootCooldown > 0 ? ((cdMax - shootCooldown) / cdMax) * 100 : 100;
     document.getElementById('cooldown-fill').style.width = cdPct + '%';
@@ -1381,6 +1512,20 @@ document.getElementById('btn-to-leaderboard').addEventListener('click', () => {
 });
 document.getElementById('btn-start').addEventListener('click', startGame);
 
+// How to Play accessible from multiple places
+let howtoReturnPage = 'menu-leaderboard';
+document.getElementById('btn-howto-from-lb').addEventListener('click', () => {
+  howtoReturnPage = 'menu-leaderboard';
+  showPage('menu-tutorial-view');
+});
+document.getElementById('btn-howto-from-dead').addEventListener('click', () => {
+  howtoReturnPage = 'menu-dead-stats';
+  showPage('menu-tutorial-view');
+});
+document.getElementById('btn-howto-back').addEventListener('click', () => {
+  showPage(howtoReturnPage);
+});
+
 // Death flow: Stats → Upgrades → Leaderboard → Retry
 document.getElementById('btn-to-upgrades').addEventListener('click', () => {
   renderUpgrades();
@@ -1406,6 +1551,11 @@ window.addEventListener('keydown', e => {
 
 // Kick off
 requestAnimationFrame(loop);
+
+// Register service worker for PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
 </script>
 </body>
 </html>

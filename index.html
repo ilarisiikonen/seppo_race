@@ -80,9 +80,9 @@ canvas {
 .beer-fill { height: 100%; background: #ffaa00; transition: width 0.1s; }
 .cooldown-bar { width: 80px; height: 6px; background: #333; border: 1px solid #555; margin-top: 2px; }
 .cooldown-fill { height: 100%; background: #ffdd00; transition: width 0.05s; }
-/* Mobile touch controls - Nintendo style */
+/* Mobile touch controls */
 #touch-controls {
-  position: absolute; bottom: 0; left: 0; width: 100%; height: 45%;
+  position: fixed; bottom: 0; left: 0; width: 100%; height: 50%;
   z-index: 8; pointer-events: none;
   display: none;
 }
@@ -90,61 +90,50 @@ canvas {
 @media (hover: hover) and (pointer: fine) {
   #touch-controls, #touch-controls.active { display: none !important; }
 }
-/* D-pad */
-.dpad {
-  position: absolute; bottom: 30px; left: 16px;
-  width: 180px; height: 180px;
-  pointer-events: none;
-}
-.dpad-btn {
-  position: absolute;
-  width: 60px; height: 60px;
-  background: rgba(60,60,60,0.85);
-  border: 2px solid rgba(255,255,255,0.25);
+/* Joystick */
+.joystick-zone {
+  position: absolute; bottom: 20px; left: 16px;
+  width: 160px; height: 160px;
   pointer-events: all;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.5em;
-  color: rgba(255,255,255,0.7);
   -webkit-tap-highlight-color: transparent;
 }
-.dpad-btn.pressed { background: rgba(120,120,120,0.9); color: #fff; }
-.dpad-center {
-  position: absolute;
-  width: 60px; height: 60px;
-  top: 60px; left: 60px;
-  background: rgba(50,50,50,0.85);
-  border: 2px solid rgba(255,255,255,0.15);
-  border-radius: 4px;
+.joystick-base {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 140px; height: 140px;
+  border-radius: 50%;
+  background: rgba(50,50,50,0.7);
+  border: 2px solid rgba(255,255,255,0.2);
 }
-#dpad-up { top: 0; left: 60px; border-radius: 8px 8px 0 0; }
-#dpad-down { bottom: 0; left: 60px; border-radius: 0 0 8px 8px; }
-#dpad-left { top: 60px; left: 0; border-radius: 8px 0 0 8px; }
-#dpad-right { top: 60px; right: 0; border-radius: 0 8px 8px 0; }
-/* Action buttons */
-.action-btns {
-  position: absolute; bottom: 50px; right: 20px;
+.joystick-knob {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background: rgba(180,180,180,0.85);
+  border: 2px solid rgba(255,255,255,0.4);
+  transition: none;
+}
+/* Fire button */
+.fire-zone {
+  position: absolute; bottom: 40px; right: 20px;
   pointer-events: none;
 }
-.action-btn {
-  width: 90px; height: 90px;
+.fire-btn {
+  width: 100px; height: 100px;
   border-radius: 50%;
   pointer-events: all;
   display: flex; align-items: center; justify-content: center;
   font-weight: bold;
+  font-family: 'Courier New', monospace;
+  font-size: 1.1em;
+  letter-spacing: 1px;
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.1s;
-  box-shadow: 0 3px 0 rgba(0,0,0,0.4);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.5);
+  background: rgba(220,50,50,0.85); border: 3px solid rgba(255,100,100,0.5);
+  color: #fff;
 }
-.action-btn.pressed { box-shadow: 0 1px 0 rgba(0,0,0,0.4); transform: translateY(2px); }
-#btn-a {
-  background: rgba(220,50,50,0.85); border: 2px solid rgba(255,100,100,0.5);
-  color: #fff; font-size: 1.8em;
-}
-#btn-a.pressed { background: rgba(255,80,80,0.95); }
-.btn-label {
-  position: absolute; font-size: 0.5em; color: rgba(255,255,255,0.4);
-  font-family: 'Courier New', monospace; bottom: -16px;
-}
+.fire-btn.pressed { box-shadow: 0 1px 0 rgba(0,0,0,0.5); transform: translateY(3px); background: rgba(255,80,80,0.95); }
 .info-box {
   text-align: left; display: inline-block; background: #1a1a1a;
   border: 1px solid #444; padding: 8px 12px; border-radius: 4px;
@@ -200,15 +189,13 @@ canvas {
 </div>
 
 <div id="touch-controls">
-  <div class="dpad">
-    <div class="dpad-center"></div>
-    <div class="dpad-btn" id="dpad-up">▲</div>
-    <div class="dpad-btn" id="dpad-down">▼</div>
-    <div class="dpad-btn" id="dpad-left">◀</div>
-    <div class="dpad-btn" id="dpad-right">▶</div>
+  <div class="joystick-zone" id="joystick-zone">
+    <div class="joystick-base">
+      <div class="joystick-knob" id="joystick-knob"></div>
+    </div>
   </div>
-  <div class="action-btns">
-    <div class="action-btn" id="btn-a">A<span class="btn-label">FIRE</span></div>
+  <div class="fire-zone">
+    <div class="fire-btn" id="btn-fire">FIRE</div>
   </div>
 </div>
 
@@ -519,17 +506,18 @@ const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 // --- SIZING ---
 let W, H, SCALE;
 function resize() {
-  const isNarrow = window.innerWidth < 800;
+  const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const isNarrow = vw < 800;
   if (isNarrow) {
-    W = window.innerWidth;
-    H = window.innerHeight;
+    W = vw;
+    H = vh;
   } else {
     const maxW = 1100;
-    const maxH = window.innerHeight;
     const aspect = 16 / 10;
-    H = maxH;
+    H = vh;
     W = Math.min(maxW, Math.floor(H * aspect));
-    if (W > window.innerWidth) { W = window.innerWidth; H = Math.floor(W / aspect); }
+    if (W > vw) { W = vw; H = Math.floor(W / aspect); }
   }
   canvas.width = W;
   canvas.height = H;
@@ -538,6 +526,7 @@ function resize() {
   SCALE = isNarrow ? W / 400 : W / 1100;
 }
 window.addEventListener('resize', resize);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
 resize();
 
 // --- CONSTANTS ---
@@ -838,37 +827,112 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => { keys[e.key] = false; });
 
 let touchL = false, touchR = false, touchU = false, touchD = false, touchFire = false;
+let joystickX = 0, joystickY = 0;
 
-function setupTouchBtn(id, callback) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const press = (e) => { e.preventDefault(); el.classList.add('pressed'); callback(true); };
-  const release = (e) => { e.preventDefault(); el.classList.remove('pressed'); callback(false); };
-  el.addEventListener('touchstart', press, { passive: false });
-  el.addEventListener('touchend', release, { passive: false });
-  el.addEventListener('touchcancel', release, { passive: false });
-  el.addEventListener('mousedown', press);
-  el.addEventListener('mouseup', release);
-  el.addEventListener('mouseleave', release);
-}
-setupTouchBtn('dpad-left', v => touchL = v);
-setupTouchBtn('dpad-right', v => touchR = v);
-setupTouchBtn('dpad-up', v => touchU = v);
-setupTouchBtn('dpad-down', v => touchD = v);
-setupTouchBtn('btn-a', v => touchFire = v);
+// --- Joystick ---
+(function() {
+  const zone = document.getElementById('joystick-zone');
+  const knob = document.getElementById('joystick-knob');
+  if (!zone || !knob) return;
+  let active = false, originX = 0, originY = 0, touchId = null;
+  const maxDist = 50;
+
+  function handleMove(cx, cy) {
+    let dx = cx - originX;
+    let dy = cy - originY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > maxDist) { dx = dx / dist * maxDist; dy = dy / dist * maxDist; }
+    knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    joystickX = dx / maxDist;
+    joystickY = dy / maxDist;
+  }
+
+  zone.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    touchId = t.identifier;
+    const rect = zone.getBoundingClientRect();
+    originX = rect.left + rect.width / 2;
+    originY = rect.top + rect.height / 2;
+    active = true;
+    handleMove(t.clientX, t.clientY);
+  }, { passive: false });
+
+  window.addEventListener('touchmove', e => {
+    if (!active) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === touchId) {
+        e.preventDefault();
+        handleMove(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+        return;
+      }
+    }
+  }, { passive: false });
+
+  function release() {
+    active = false; touchId = null;
+    joystickX = 0; joystickY = 0;
+    knob.style.transform = 'translate(-50%, -50%)';
+  }
+  window.addEventListener('touchend', e => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === touchId) { release(); return; }
+    }
+  });
+  window.addEventListener('touchcancel', e => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === touchId) { release(); return; }
+    }
+  });
+})();
+
+// --- Fire button ---
+(function() {
+  const btn = document.getElementById('btn-fire');
+  if (!btn) return;
+  let fireTouchId = null;
+  btn.addEventListener('touchstart', e => {
+    e.preventDefault();
+    fireTouchId = e.changedTouches[0].identifier;
+    btn.classList.add('pressed');
+    touchFire = true;
+  }, { passive: false });
+  window.addEventListener('touchend', e => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === fireTouchId) {
+        btn.classList.remove('pressed');
+        touchFire = false;
+        fireTouchId = null;
+        return;
+      }
+    }
+  });
+  window.addEventListener('touchcancel', e => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === fireTouchId) {
+        btn.classList.remove('pressed');
+        touchFire = false;
+        fireTouchId = null;
+        return;
+      }
+    }
+  });
+})();
 
 function getSteer() {
   let s = 0;
-  if (keys['ArrowLeft'] || keys['a'] || keys['A'] || touchL) s -= 1;
-  if (keys['ArrowRight'] || keys['d'] || keys['D'] || touchR) s += 1;
-  return s;
+  if (keys['ArrowLeft'] || keys['a'] || keys['A']) s -= 1;
+  if (keys['ArrowRight'] || keys['d'] || keys['D']) s += 1;
+  if (Math.abs(joystickX) > 0.15) s += joystickX;
+  return Math.max(-1, Math.min(1, s));
 }
 
 function getVertical() {
   let v = 0;
-  if (keys['ArrowUp'] || keys['w'] || keys['W'] || touchU) v -= 1;
-  if (keys['ArrowDown'] || keys['s'] || keys['S'] || touchD) v += 1;
-  return v;
+  if (keys['ArrowUp'] || keys['w'] || keys['W']) v -= 1;
+  if (keys['ArrowDown'] || keys['s'] || keys['S']) v += 1;
+  if (Math.abs(joystickY) > 0.15) v += joystickY;
+  return Math.max(-1, Math.min(1, v));
 }
 
 // --- UPDATE ---

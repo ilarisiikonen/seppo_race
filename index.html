@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Seppo Race">
 <link rel="apple-touch-icon" href="seppo/rotations/south.png">
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="./manifest.json">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
@@ -84,7 +84,7 @@ canvas {
   display: none;
 }
 #touch-controls.active { display: block; }
-@media (min-width: 800px) {
+@media (hover: hover) and (pointer: fine) {
   #touch-controls, #touch-controls.active { display: none !important; }
 }
 /* D-pad */
@@ -511,14 +511,15 @@ let seppoDeathFrame = 0;
 let seppoDeathDone = false;
 
 // --- DEVICE DETECTION ---
-const isMobile = (('ontouchstart' in window) || navigator.maxTouchPoints > 0) && window.innerWidth < 800;
+const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
 // --- SIZING ---
 let W, H, SCALE;
 function resize() {
-  const maxW = isMobile ? 500 : 1100;
+  const isNarrow = window.innerWidth < 800;
+  const maxW = isNarrow ? window.innerWidth : 1100;
   const maxH = window.innerHeight;
-  const aspect = isMobile ? 9 / 16 : 16 / 10;
+  const aspect = isNarrow ? 9 / 16 : 16 / 10;
   H = maxH;
   W = Math.min(maxW, Math.floor(H * aspect));
   if (W > window.innerWidth) { W = window.innerWidth; H = Math.floor(W / aspect); }
@@ -526,7 +527,7 @@ function resize() {
   canvas.height = H;
   canvas.style.width = W + 'px';
   canvas.style.height = H + 'px';
-  SCALE = W / (isMobile ? 500 : 1100);
+  SCALE = W / (isNarrow ? 500 : 1100);
 }
 window.addEventListener('resize', resize);
 resize();
@@ -535,7 +536,7 @@ resize();
 const ROAD_LEFT = () => W * 0.12;
 const ROAD_RIGHT = () => W * 0.88;
 const ROAD_W = () => ROAD_RIGHT() - ROAD_LEFT();
-const LANE_COUNT = isMobile ? 4 : 6;
+const LANE_COUNT = (window.innerWidth < 800) ? 4 : 6;
 const LANE_W = () => ROAD_W() / LANE_COUNT;
 const CAR_W = () => 36 * SCALE;
 const CAR_H = () => 60 * SCALE;
@@ -1109,21 +1110,6 @@ function activateBeer() {
   beerTimer = dur;
   beerMaxDuration = dur;
   beerPower = BEER_POWERS[Math.floor(Math.random() * BEER_POWERS.length)];
-  // Big, slow-moving announcement text
-  particles.push({
-    x: W / 2, y: H * 0.35, vx: 0, vy: -0.3,
-    life: 240, maxLife: 240,
-    color: beerPower.color, size: 0,
-    text: '🍺 ' + beerPower.name + '!',
-    big: true
-  });
-  particles.push({
-    x: W / 2, y: H * 0.35 + 40 * SCALE, vx: 0, vy: -0.3,
-    life: 240, maxLife: 240,
-    color: beerPower.color, size: 0,
-    text: beerPower.desc,
-    big: false
-  });
   screenShake = 4;
   shakeTimer = 10;
 }
@@ -1548,7 +1534,7 @@ requestAnimationFrame(loop);
 
 // Register service worker for PWA
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 </script>
 </body>

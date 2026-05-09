@@ -74,11 +74,11 @@ canvas {
   display: flex; justify-content: space-between; align-items: flex-start;
   pointer-events: none; z-index: 5;
 }
-.hud-left, .hud-right { color: #fff; font-size: clamp(0.65em, 2.2vw, 0.85em); text-shadow: 1px 1px #000; }
+.hud-left, .hud-right { color: #fff; font-size: clamp(0.75em, 3.5vw, 0.85em); text-shadow: 1px 1px #000; }
 .hud-left span, .hud-right span { display: block; margin: 2px 0; }
-.beer-bar { width: 80px; height: 8px; background: #333; border: 1px solid #666; margin-top: 3px; }
+.beer-bar { width: clamp(80px, 22vw, 120px); height: 10px; background: #333; border: 1px solid #666; margin-top: 3px; }
 .beer-fill { height: 100%; background: #ffaa00; transition: width 0.1s; }
-.cooldown-bar { width: 80px; height: 6px; background: #333; border: 1px solid #555; margin-top: 2px; }
+.cooldown-bar { width: clamp(80px, 22vw, 120px); height: 8px; background: #333; border: 1px solid #555; margin-top: 2px; }
 .cooldown-fill { height: 100%; background: #ffdd00; transition: width 0.05s; }
 /* Mobile touch controls */
 #touch-controls {
@@ -92,41 +92,43 @@ canvas {
 }
 /* Joystick */
 .joystick-zone {
-  position: absolute; bottom: 20px; left: 16px;
-  width: 160px; height: 160px;
+  position: absolute; bottom: 3vh; left: 3vw;
+  width: 40vw; height: 40vw;
+  max-width: 200px; max-height: 200px;
   pointer-events: all;
   -webkit-tap-highlight-color: transparent;
 }
 .joystick-base {
   position: absolute; top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: 140px; height: 140px;
+  width: 90%; height: 90%;
   border-radius: 50%;
   background: rgba(50,50,50,0.7);
-  border: 2px solid rgba(255,255,255,0.2);
+  border: 3px solid rgba(255,255,255,0.2);
 }
 .joystick-knob {
   position: absolute; top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: 60px; height: 60px;
+  width: 45%; height: 45%;
   border-radius: 50%;
   background: rgba(180,180,180,0.85);
-  border: 2px solid rgba(255,255,255,0.4);
+  border: 3px solid rgba(255,255,255,0.4);
   transition: none;
 }
 /* Fire button */
 .fire-zone {
-  position: absolute; bottom: 40px; right: 20px;
+  position: absolute; bottom: 5vh; right: 4vw;
   pointer-events: none;
 }
 .fire-btn {
-  width: 100px; height: 100px;
+  width: 26vw; height: 26vw;
+  max-width: 130px; max-height: 130px;
   border-radius: 50%;
   pointer-events: all;
   display: flex; align-items: center; justify-content: center;
   font-weight: bold;
   font-family: 'Courier New', monospace;
-  font-size: 1.1em;
+  font-size: clamp(1em, 4vw, 1.4em);
   letter-spacing: 1px;
   -webkit-tap-highlight-color: transparent;
   box-shadow: 0 4px 0 rgba(0,0,0,0.5);
@@ -523,7 +525,7 @@ function resize() {
   canvas.height = H;
   canvas.style.width = W + 'px';
   canvas.style.height = H + 'px';
-  SCALE = isNarrow ? W / 400 : W / 1100;
+  SCALE = isNarrow ? W / 360 : W / 1100;
 }
 window.addEventListener('resize', resize);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
@@ -835,7 +837,7 @@ let joystickX = 0, joystickY = 0;
   const knob = document.getElementById('joystick-knob');
   if (!zone || !knob) return;
   let active = false, originX = 0, originY = 0, touchId = null;
-  const maxDist = 50;
+  const maxDist = Math.max(50, zone.getBoundingClientRect().width * 0.3) || 70;
 
   function handleMove(cx, cy) {
     let dx = cx - originX;

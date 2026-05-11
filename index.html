@@ -32,7 +32,7 @@ canvas {
   margin: 0 auto;
   image-rendering: pixelated;
 }
-@media (max-width: 799px) {
+@media (pointer: coarse) {
   canvas { position: fixed; top: 0; left: 0; margin: 0; width: 100vw !important; height: 100dvh !important; height: 100vh !important; }
 }
 #ui-overlay {
@@ -509,25 +509,24 @@ let W, H, SCALE;
 function resize() {
   const screenW = window.innerWidth;
   const screenH = window.innerHeight;
-  const isNarrow = screenW < 800;
-  if (isNarrow) {
-    // Use CSS pixels, CSS stretches canvas to fill screen
+  if (isMobile) {
     W = screenW;
     H = screenH;
+    canvas.width = W;
+    canvas.height = H;
+    // CSS handles display size via @media (pointer: coarse)
   } else {
     const maxW = 1100;
     const aspect = 16 / 10;
     H = screenH;
     W = Math.min(maxW, Math.floor(H * aspect));
     if (W > screenW) { W = screenW; H = Math.floor(W / aspect); }
-  }
-  canvas.width = W;
-  canvas.height = H;
-  if (!isNarrow) {
+    canvas.width = W;
+    canvas.height = H;
     canvas.style.width = W + 'px';
     canvas.style.height = H + 'px';
   }
-  SCALE = isNarrow ? W / 360 : W / 1100;
+  SCALE = isMobile ? W / 360 : W / 1100;
 }
 window.addEventListener('resize', resize);
 resize();
@@ -536,7 +535,7 @@ resize();
 const ROAD_LEFT = () => W * 0.12;
 const ROAD_RIGHT = () => W * 0.88;
 const ROAD_W = () => ROAD_RIGHT() - ROAD_LEFT();
-const LANE_COUNT = (window.innerWidth < 800) ? 4 : 6;
+const LANE_COUNT = isMobile ? 4 : 6;
 const LANE_W = () => ROAD_W() / LANE_COUNT;
 const CAR_W = () => 36 * SCALE;
 const CAR_H = () => 60 * SCALE;

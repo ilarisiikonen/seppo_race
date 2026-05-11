@@ -33,7 +33,7 @@ canvas {
   image-rendering: pixelated;
 }
 @media (max-width: 799px) {
-  canvas { position: fixed; top: 0; left: 0; margin: 0; width: 100% !important; height: 100% !important; }
+  canvas { position: fixed; top: 0; left: 0; margin: 0; width: 100vw !important; height: 100dvh !important; height: 100vh !important; }
 }
 #ui-overlay {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -510,21 +510,20 @@ function resize() {
   const screenW = window.innerWidth;
   const screenH = window.innerHeight;
   const isNarrow = screenW < 800;
-  const dpr = isNarrow ? (window.devicePixelRatio || 1) : 1;
   if (isNarrow) {
-    W = Math.round(screenW * dpr);
-    H = Math.round(screenH * dpr);
-    canvas.width = W;
-    canvas.height = H;
-    // Let CSS handle display size on mobile
+    // Use CSS pixels, CSS stretches canvas to fill screen
+    W = screenW;
+    H = screenH;
   } else {
     const maxW = 1100;
     const aspect = 16 / 10;
     H = screenH;
     W = Math.min(maxW, Math.floor(H * aspect));
     if (W > screenW) { W = screenW; H = Math.floor(W / aspect); }
-    canvas.width = W;
-    canvas.height = H;
+  }
+  canvas.width = W;
+  canvas.height = H;
+  if (!isNarrow) {
     canvas.style.width = W + 'px';
     canvas.style.height = H + 'px';
   }
